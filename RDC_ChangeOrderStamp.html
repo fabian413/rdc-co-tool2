@@ -1,0 +1,1011 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Red Door Construction — Change Order Tool</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.9.0/dist/tabler-icons.min.css"/>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --red:#C0291A;--red-dark:#A32D2D;--blue:#185FA5;--gold:#B8892A;--green:#2E7D32;
+  --charcoal:#1E1E1E;--bg:#EFECE7;--card:#FFFFFF;--card2:#FAFAF8;
+  --border:rgba(0,0,0,0.09);--border-mid:rgba(0,0,0,0.16);
+  --text:#1E1E1E;--muted:#6B6560;--muted2:#9B9590;
+  --r:8px;--rl:12px;
+}
+@media(prefers-color-scheme:dark){
+  :root{--bg:#181818;--card:#232323;--card2:#1e1e1e;--border:rgba(255,255,255,0.07);--border-mid:rgba(255,255,255,0.15);--text:#F0EDE8;--muted:#9B9590;--muted2:#6B6560;}
+}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;}
+#loginScreen{position:fixed;inset:0;background:var(--charcoal);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:1000;padding:2rem;}
+.login-logo{width:52px;height:52px;background:var(--red);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:26px;font-weight:700;color:#fff;margin-bottom:1.25rem;}
+.login-title{color:#fff;font-size:22px;font-weight:500;margin-bottom:.25rem;}
+.login-sub{color:rgba(255,255,255,.4);font-size:14px;margin-bottom:2rem;text-align:center;}
+.pm-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;width:100%;max-width:420px;}
+.pm-btn{background:rgba(255,255,255,.06);border:.5px solid rgba(255,255,255,.14);border-radius:var(--rl);padding:1.1rem 1rem;cursor:pointer;text-align:center;transition:all .15s;font-family:inherit;}
+.pm-btn:hover{background:rgba(192,41,26,.18);border-color:var(--red);}
+.pm-avatar{width:44px;height:44px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:600;color:#fff;margin:0 auto .6rem;}
+.pm-name-login{color:#fff;font-size:13px;font-weight:500;}
+header{background:var(--charcoal);padding:0 1.5rem;display:flex;align-items:center;justify-content:space-between;height:52px;position:sticky;top:0;z-index:200;}
+.logo{display:flex;align-items:center;gap:9px;}
+.logo-badge{width:28px;height:28px;background:var(--red);border-radius:5px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;color:#fff;}
+.logo-name{color:#fff;font-size:13px;font-weight:500;}
+.logo-sub{color:rgba(255,255,255,.35);font-size:12px;margin-left:5px;}
+.pm-pill{display:flex;align-items:center;gap:7px;cursor:pointer;background:rgba(255,255,255,.07);border:.5px solid rgba(255,255,255,.12);border-radius:99px;padding:4px 10px 4px 5px;}
+.pm-pill-av{width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:#fff;}
+.pm-pill-name{color:rgba(255,255,255,.85);font-size:12px;font-weight:500;}
+.sync-dot{width:7px;height:7px;border-radius:50%;background:var(--muted2);margin-left:2px;flex-shrink:0;transition:background .3s;}
+.sync-dot.syncing{background:var(--gold);animation:pulse .8s infinite;}
+.sync-dot.synced{background:var(--green);}
+.sync-dot.error{background:var(--red);}
+@keyframes pulse{0%,100%{opacity:1;}50%{opacity:.4;}}
+.tabs{display:flex;background:var(--charcoal);border-bottom:1px solid rgba(255,255,255,.07);padding:0 1.5rem;gap:2px;overflow-x:auto;}
+.tab{padding:9px 14px;font-size:13px;font-weight:500;color:rgba(255,255,255,.4);cursor:pointer;border-bottom:2px solid transparent;transition:all .15s;background:none;border-top:none;border-left:none;border-right:none;font-family:inherit;display:flex;align-items:center;gap:5px;white-space:nowrap;}
+.tab:hover{color:rgba(255,255,255,.7);}
+.tab.active{color:#fff;border-bottom-color:var(--red);}
+.nbadge{background:var(--red);color:#fff;font-size:10px;font-weight:600;padding:1px 5px;border-radius:99px;min-width:16px;text-align:center;line-height:14px;}
+.panel{display:none;max-width:800px;margin:0 auto;padding:1.75rem 1.5rem 4rem;}
+.panel.active{display:block;}
+.page-title{font-size:20px;font-weight:500;margin-bottom:.2rem;}
+.page-sub{font-size:13px;color:var(--muted);margin-bottom:1.25rem;}
+.section-label{font-size:11px;font-weight:500;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:.65rem;display:flex;align-items:center;gap:6px;}
+.card{background:var(--card);border:.5px solid var(--border);border-radius:var(--rl);padding:1.25rem;margin-bottom:1rem;}
+.divider{height:.5px;background:var(--border);margin:.9rem 0;}
+.field-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;}
+.field-row.single{grid-template-columns:1fr;}
+@media(max-width:520px){.field-row{grid-template-columns:1fr;}}
+.field{display:flex;flex-direction:column;gap:4px;}
+.field label{font-size:12px;color:var(--muted);font-weight:500;}
+.field input,.field textarea,.field select{width:100%;font-size:14px;padding:7px 10px;border-radius:var(--r);border:.5px solid var(--border-mid);background:var(--bg);color:var(--text);outline:none;font-family:inherit;transition:border-color .15s,box-shadow .15s;}
+.field textarea{resize:vertical;min-height:68px;line-height:1.5;}
+.field input:focus,.field textarea:focus,.field select:focus{border-color:var(--red);box-shadow:0 0 0 2px rgba(192,41,26,.12);}
+.field input[readonly]{opacity:.6;cursor:default;}
+.toggle-row{display:flex;gap:7px;}
+.tbtn{flex:1;padding:7px 5px;border-radius:var(--r);border:.5px solid var(--border-mid);background:var(--bg);color:var(--muted);font-size:13px;font-weight:500;cursor:pointer;transition:all .15s;font-family:inherit;}
+.tbtn.a-in{background:#EAF3DE;border-color:#639922;color:#27500A;}
+.tbtn.a-out{background:#FCEBEB;border-color:#A32D2D;color:#501313;}
+.tbtn.a-appr{background:#EAF3DE;border-color:#639922;color:#27500A;}
+.tbtn.a-pend{background:#FAEEDA;border-color:#BA7517;color:#412402;}
+.tbtn.a-hold{background:#FCEBEB;border-color:#A32D2D;color:#501313;}
+.doc-toggle{display:flex;gap:6px;flex-wrap:wrap;}
+.dbtn{padding:5px 13px;border-radius:99px;border:.5px solid var(--border-mid);background:var(--bg);color:var(--muted);font-size:12px;font-weight:500;cursor:pointer;transition:all .15s;font-family:inherit;}
+.dbtn.active{background:var(--charcoal);border-color:var(--charcoal);color:#F5F3EF;}
+.upload-zone{border:1px dashed var(--border-mid);border-radius:var(--rl);padding:1.4rem;text-align:center;cursor:pointer;background:var(--bg);transition:border-color .15s;}
+.upload-zone:hover{border-color:var(--red);}
+.upload-zone i{font-size:26px;color:var(--muted);}
+.upload-zone p{font-size:13px;color:var(--muted);margin-top:5px;}
+.sig-wrap{position:relative;}
+.sig-canvas{width:100%;height:88px;border-radius:var(--r);border:.5px solid var(--border-mid);background:var(--bg);cursor:crosshair;display:block;touch-action:none;}
+.sig-clear{position:absolute;top:6px;right:7px;font-size:11px;color:var(--muted);cursor:pointer;background:var(--card);border:.5px solid var(--border);border-radius:var(--r);padding:2px 8px;font-family:inherit;}
+.sig-clear:hover{color:var(--red);border-color:var(--red);}
+.sig-hint{font-size:11px;color:var(--muted);margin-top:3px;}
+.stamps-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:1rem;}
+@media(max-width:520px){.stamps-row{grid-template-columns:1fr;}}
+.stamp-card{background:var(--card);border:.5px solid var(--border);border-radius:var(--rl);padding:.9rem;}
+.stamp-box{border:2px solid var(--red);border-radius:4px;padding:9px 11px;}
+.stamp-box.acct{border-color:var(--blue);}
+.stamp-hdr{display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--red);padding-bottom:6px;margin-bottom:8px;}
+.stamp-box.acct .stamp-hdr{border-bottom-color:var(--blue);}
+.stitle{font-size:10px;font-weight:600;color:var(--red);letter-spacing:.06em;text-transform:uppercase;}
+.stamp-box.acct .stitle{color:var(--blue);}
+.sbrand{display:flex;align-items:center;gap:4px;}
+.sbrand-ico{width:12px;height:12px;border-radius:2px;display:flex;align-items:center;justify-content:center;font-size:7px;font-weight:700;color:#fff;flex-shrink:0;}
+.sbrand-name{font-size:8px;font-weight:500;letter-spacing:.04em;}
+.sgrid{display:grid;grid-template-columns:1fr 1fr;gap:4px 9px;}
+.sf{display:flex;flex-direction:column;gap:1px;}
+.sfl{font-size:7.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;}
+.sfv{font-size:11px;font-weight:600;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.sfv.c-in{color:#3B6D11;}.sfv.c-out{color:#A32D2D;}.sfv.c-appr{color:#3B6D11;}.sfv.c-pend{color:#854F0B;}.sfv.c-hold{color:#A32D2D;}
+.sfoot{border-top:.5px solid var(--border);margin-top:7px;padding-top:6px;}
+.sfootr{display:flex;justify-content:space-between;align-items:flex-end;}
+.sfootl{font-size:7px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;}
+.sfootv{font-size:10px;font-style:italic;color:var(--text);}
+.sig-prev{margin-top:4px;height:24px;}
+.sig-prev img{height:24px;max-width:100%;object-fit:contain;object-position:left;}
+.notes-stamp{font-size:8.5px;color:var(--muted);font-style:italic;margin-top:5px;border-top:.5px solid var(--border);padding-top:4px;white-space:pre-wrap;word-break:break-word;}
+.acct-badge{font-size:11px;background:#E6F1FB;color:#185FA5;padding:2px 8px;border-radius:99px;font-weight:500;margin-left:8px;}
+.draft-bar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:1.1rem;}
+.drbtn{padding:6px 12px;border-radius:var(--r);border:.5px solid var(--border-mid);background:var(--card);color:var(--muted);font-size:12px;font-weight:500;cursor:pointer;display:flex;align-items:center;gap:5px;font-family:inherit;transition:all .15s;}
+.drbtn:hover{border-color:var(--red);color:var(--red);}
+.drbtn.primary{background:var(--red);color:#fff;border-color:var(--red);}
+.drbtn.primary:hover{background:var(--red-dark);}
+.draft-status{font-size:11px;color:var(--muted);font-style:italic;}
+.fname-box{font-size:12px;color:var(--muted);background:var(--bg);border-radius:var(--r);padding:6px 11px;font-family:'SF Mono','Fira Code',monospace;border:.5px solid var(--border);word-break:break-all;margin-bottom:9px;}
+.fname-box span{color:var(--text);font-weight:600;}
+.dlbtn{width:100%;padding:11px;background:var(--red);color:#fff;border:none;border-radius:var(--r);font-size:15px;font-weight:500;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;font-family:inherit;transition:background .15s;}
+.dlbtn:hover{background:var(--red-dark);}
+.dlbtn:disabled{background:var(--border);color:var(--muted);cursor:not-allowed;}
+.send-notice{font-size:12px;color:var(--muted);background:var(--bg);border:.5px solid var(--border);border-radius:var(--r);padding:7px 11px;margin-bottom:9px;display:flex;align-items:center;gap:6px;}
+.summary-row{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:1.25rem;}
+@media(max-width:560px){.summary-row{grid-template-columns:1fr 1fr;}}
+.sum-card{background:var(--card);border:.5px solid var(--border);border-radius:var(--r);padding:.75rem 1rem;}
+.sum-label{font-size:11px;color:var(--muted);margin-bottom:3px;}
+.sum-val{font-size:20px;font-weight:600;}
+.sum-val.red{color:var(--red);}.sum-val.blue{color:var(--blue);}.sum-val.gold{color:var(--gold);}.sum-val.green{color:var(--green);}
+.tracker-toolbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:1rem;}
+.tbar-select{padding:7px 10px;border-radius:var(--r);border:.5px solid var(--border-mid);background:var(--card);color:var(--text);font-size:13px;font-family:inherit;outline:none;cursor:pointer;}
+.tbar-search{flex:1;min-width:140px;padding:7px 10px;border-radius:var(--r);border:.5px solid var(--border-mid);background:var(--card);color:var(--text);font-size:13px;font-family:inherit;outline:none;}
+.tbar-search:focus,.tbar-select:focus{border-color:var(--red);}
+.tbar-btn{padding:7px 11px;border-radius:var(--r);border:.5px solid var(--border-mid);background:var(--card);color:var(--muted);font-size:12px;font-weight:500;cursor:pointer;font-family:inherit;display:flex;align-items:center;gap:5px;white-space:nowrap;transition:all .15s;}
+.tbar-btn:hover{border-color:var(--red);color:var(--red);}
+.tbar-btn.blue-btn{border-color:var(--blue);color:var(--blue);background:#EAF2FB;}
+.tbar-btn.blue-btn:hover{background:#B5D4F4;}
+.proj-group{margin-bottom:1.5rem;border:.5px solid var(--border);border-radius:var(--rl);overflow:hidden;}
+.proj-group-hdr{display:flex;align-items:center;justify-content:space-between;padding:.7rem 1rem;background:var(--card);border-bottom:2px solid var(--red);flex-wrap:wrap;gap:8px;}
+.proj-group-left{display:flex;align-items:center;gap:10px;}
+.proj-group-name{font-size:14px;font-weight:600;}
+.proj-sp-link{font-size:11px;color:var(--blue);display:flex;align-items:center;gap:3px;text-decoration:none;padding:3px 8px;border-radius:99px;border:.5px solid var(--blue);background:#EAF2FB;white-space:nowrap;cursor:pointer;}
+.proj-sp-link:hover{background:#B5D4F4;}
+.proj-sp-setup{font-size:11px;color:var(--muted);display:flex;align-items:center;gap:3px;cursor:pointer;padding:3px 8px;border-radius:99px;border:.5px solid var(--border-mid);}
+.proj-sp-setup:hover{border-color:var(--blue);color:var(--blue);}
+.proj-group-stats{display:flex;gap:12px;font-size:12px;color:var(--muted);}
+.proj-group-stats span b{font-weight:600;color:var(--text);}
+.folder-cols{display:grid;grid-template-columns:1fr 1fr;background:var(--card2);}
+@media(max-width:640px){.folder-cols{grid-template-columns:1fr;}}
+.folder-col{border-right:.5px solid var(--border);}
+.folder-col:last-child{border-right:none;}
+.folder-col-hdr{padding:.55rem .85rem;display:flex;align-items:center;justify-content:space-between;border-bottom:.5px solid var(--border);}
+.folder-col-hdr.pending{background:rgba(186,117,23,.06);}
+.folder-col-hdr.approved{background:rgba(24,95,165,.06);}
+.folder-col-title{font-size:12px;font-weight:600;display:flex;align-items:center;gap:5px;}
+.folder-count{font-size:10px;font-weight:600;padding:1px 6px;border-radius:99px;}
+.folder-col-hdr.pending .folder-count{background:#FAEEDA;color:#412402;}
+.folder-col-hdr.approved .folder-count{background:#E6F1FB;color:#0C447C;}
+.folder-body{padding:.5rem;min-height:80px;}
+.co-card{background:var(--card);border:.5px solid var(--border);border-radius:var(--r);padding:.65rem .8rem;margin-bottom:.4rem;}
+.co-card:hover{border-color:var(--red);}
+.co-card-top{display:flex;justify-content:space-between;align-items:flex-start;gap:6px;}
+.co-title{font-size:12px;font-weight:600;}
+.co-amt{font-size:12px;font-weight:600;color:var(--red);white-space:nowrap;}
+.co-meta{font-size:11px;color:var(--muted);margin-top:2px;}
+.co-tags{display:flex;gap:4px;flex-wrap:wrap;margin-top:5px;}
+.tag{font-size:10px;font-weight:500;padding:2px 7px;border-radius:99px;border:.5px solid var(--border);}
+.tag.scope-in{background:#EAF3DE;color:#27500A;border-color:#639922;}
+.tag.scope-out{background:#FCEBEB;color:#501313;border-color:#A32D2D;}
+.tag.doc{background:var(--bg);color:var(--muted);}
+.tag.pm-tag{background:#F1EFE8;color:#5F5E5A;border-color:#D3D1C7;}
+.tag.source{background:#EAF2FB;color:#0C447C;border-color:#B5D4F4;}
+.co-pdf-zone{display:flex;align-items:center;gap:8px;margin-top:7px;padding:7px 10px;border:1px dashed var(--border-mid);border-radius:var(--r);background:var(--bg);cursor:pointer;font-size:12px;color:var(--muted);transition:all .15s;position:relative;}
+.co-pdf-zone:hover,.co-pdf-zone.drag-over{border-color:var(--blue);color:var(--blue);}
+.co-pdf-zone.has-pdf{border-color:var(--green);background:#EDF7EE;color:var(--green);border-style:solid;}
+.co-pdf-zone i{font-size:15px;flex-shrink:0;}
+.co-pdf-zone span{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.pdf-clear{position:absolute;right:7px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--muted);cursor:pointer;font-size:13px;padding:2px;line-height:1;}
+.pdf-clear:hover{color:var(--red);}
+.co-checklist{margin-top:7px;border-top:.5px solid var(--border);padding-top:7px;display:flex;flex-direction:column;gap:5px;}
+.cl-item{display:flex;align-items:center;gap:8px;}
+.cl-check{width:18px;height:18px;border-radius:4px;border:1.5px solid var(--border-mid);background:var(--bg);cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .15s;}
+.cl-check.done{background:var(--green);border-color:var(--green);}
+.cl-check.done::after{content:'✓';font-size:11px;color:#fff;font-weight:700;}
+.cl-label{font-size:11px;color:var(--muted);flex:1;}
+.cl-label.done{text-decoration:line-through;color:var(--muted2);}
+.cl-action{font-size:11px;color:var(--blue);cursor:pointer;white-space:nowrap;background:none;border:none;font-family:inherit;padding:0;}
+.cl-action:hover{text-decoration:underline;}
+.cl-note{font-size:10px;color:var(--muted2);font-style:italic;}
+.co-card-actions{display:flex;gap:5px;margin-top:7px;flex-wrap:wrap;}
+.ca-btn{padding:4px 9px;border-radius:var(--r);border:.5px solid var(--border-mid);background:var(--bg);color:var(--muted);font-size:11px;font-weight:500;cursor:pointer;font-family:inherit;display:flex;align-items:center;gap:4px;transition:all .15s;}
+.ca-btn.approve-btn{background:#E6F1FB;border-color:var(--blue);color:#0C447C;}
+.ca-btn.approve-btn:hover{background:#B5D4F4;}
+.ca-btn.del:hover{border-color:var(--red);background:#FCEBEB;color:var(--red-dark);}
+.all-done-banner{font-size:11px;color:var(--green);font-weight:600;display:flex;align-items:center;gap:4px;margin-top:6px;padding:4px 8px;background:#EDF7EE;border-radius:var(--r);border:.5px solid #A5D6A7;}
+.empty-state{text-align:center;padding:1.5rem 1rem;color:var(--muted2);font-size:12px;}
+.empty-state i{font-size:24px;display:block;margin-bottom:.4rem;opacity:.3;}
+.proj-mgr-list{display:flex;flex-direction:column;gap:8px;}
+.proj-row{display:flex;align-items:center;gap:10px;background:var(--card);border:.5px solid var(--border);border-radius:var(--r);padding:.7rem 1rem;}
+.proj-row-name{font-size:14px;font-weight:500;flex:1;}
+.proj-row-url{font-size:12px;color:var(--blue);flex:2;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.proj-row-url.empty{color:var(--muted2);font-style:italic;}
+.proj-row-actions{display:flex;gap:6px;}
+.icon-btn{padding:5px 8px;border-radius:var(--r);border:.5px solid var(--border-mid);background:var(--bg);color:var(--muted);font-size:12px;cursor:pointer;font-family:inherit;transition:all .15s;}
+.icon-btn:hover{border-color:var(--red);color:var(--red);}
+.add-proj-form{display:grid;grid-template-columns:1fr 1.5fr auto;gap:8px;margin-top:.75rem;}
+@media(max-width:560px){.add-proj-form{grid-template-columns:1fr;}}
+.add-proj-form input{font-size:13px;padding:7px 10px;border-radius:var(--r);border:.5px solid var(--border-mid);background:var(--bg);color:var(--text);outline:none;font-family:inherit;}
+.add-proj-form input:focus{border-color:var(--red);}
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:500;display:flex;align-items:center;justify-content:center;padding:1rem;}
+.modal{background:var(--card);border-radius:var(--rl);padding:1.5rem;max-width:500px;width:100%;max-height:92vh;overflow-y:auto;position:relative;}
+.modal-close{position:absolute;top:12px;right:12px;background:none;border:none;font-size:20px;cursor:pointer;color:var(--muted);}
+.modal-close:hover{color:var(--red);}
+.modal-title{font-size:16px;font-weight:600;margin-bottom:1rem;padding-right:2rem;}
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--charcoal);color:#F5F3EF;padding:9px 18px;border-radius:var(--r);font-size:13px;opacity:0;transition:opacity .25s;pointer-events:none;z-index:9999;white-space:nowrap;}
+.toast.show{opacity:1;}
+</style>
+</head>
+<body>
+
+<div id="loginScreen">
+  <div class="login-logo">R</div>
+  <div class="login-title">Red Door Construction</div>
+  <div class="login-sub">Change Order Tool — Select your name to continue</div>
+  <div class="pm-grid" id="pmGrid"></div>
+</div>
+
+<div id="app" style="display:none">
+  <header>
+    <div class="logo">
+      <div class="logo-badge">R</div>
+      <span class="logo-name">Red Door Construction</span>
+      <span class="logo-sub">Change Order Tool</span>
+    </div>
+    <div style="display:flex;align-items:center;gap:10px">
+      <span style="font-size:11px;color:rgba(255,255,255,.35)" id="syncLabel"></span>
+      <div class="sync-dot" id="syncDot" title="Sync status"></div>
+      <div class="pm-pill" onclick="switchPM()">
+        <div class="pm-pill-av" id="headerAvatar"></div>
+        <span class="pm-pill-name" id="headerName"></span>
+        <i class="ti ti-chevron-down" style="font-size:10px;color:rgba(255,255,255,.35)"></i>
+      </div>
+    </div>
+  </header>
+
+  <div class="tabs">
+    <button class="tab active" id="tab-stamp" onclick="switchTab('stamp')"><i class="ti ti-stamp"></i> Stamp CO</button>
+    <button class="tab" id="tab-tracker" onclick="switchTab('tracker')"><i class="ti ti-folders"></i> CE Tracker <span class="nbadge" id="pendingBadge">0</span></button>
+    <button class="tab" id="tab-projects" onclick="switchTab('projects')"><i class="ti ti-building"></i> Projects</button>
+  </div>
+
+  <!-- STAMP -->
+  <div class="panel active" id="panel-stamp">
+    <h1 class="page-title">Change order stamp</h1>
+    <p class="page-sub" id="stampSub"></p>
+    <div class="draft-bar">
+      <button class="drbtn primary" onclick="saveDraft()"><i class="ti ti-device-floppy"></i> Save draft</button>
+      <button class="drbtn" onclick="loadDraft()"><i class="ti ti-folder-open"></i> Load draft</button>
+      <button class="drbtn" onclick="clearAll()"><i class="ti ti-trash"></i> Clear</button>
+      <span class="draft-status" id="draftStatus"></span>
+    </div>
+    <div class="card">
+      <p class="section-label"><i class="ti ti-clipboard-list"></i> Change order details</p>
+      <div class="field-row">
+        <div class="field"><label>Project name</label><select id="projectName" onchange="updatePreview()"><option value="">— Select project —</option></select></div>
+        <div class="field"><label>Vendor / subcontractor</label><input type="text" id="vendorName" placeholder="e.g. ABC Electric"/></div>
+      </div>
+      <div class="field-row">
+        <div class="field"><label>CE #</label><input type="text" id="ceNumber" placeholder="e.g. CE-042"/></div>
+        <div class="field"><label>Change order amount</label><input type="text" id="coAmount" placeholder="e.g. $4,250.00"/></div>
+      </div>
+      <div class="field-row">
+        <div class="field"><label>Cost code</label><input type="text" id="costCode" placeholder="e.g. 03-200"/></div>
+        <div class="field"><label>Description</label><input type="text" id="coDescription" placeholder="Brief description of work"/></div>
+      </div>
+      <div class="divider"></div>
+      <div class="field-row">
+        <div class="field"><label>Scope</label><div class="toggle-row"><button class="tbtn" id="scopeIn" onclick="setScope('in')">In scope</button><button class="tbtn" id="scopeOut" onclick="setScope('out')">Out of scope</button></div></div>
+        <div class="field"><label>Document type</label><div class="doc-toggle"><button class="dbtn" id="docCCO" onclick="setDoc('CCO')">CCO</button><button class="dbtn" id="docSC" onclick="setDoc('SC')">SC</button><button class="dbtn" id="docPO" onclick="setDoc('PO')">PO</button><button class="dbtn" id="docNone" onclick="setDoc('None')">None</button></div></div>
+      </div>
+      <div class="divider"></div>
+      <div class="field-row">
+        <div class="field"><label>Project manager</label><input type="text" id="pmName" readonly/></div>
+        <div class="field"><label>PM approval date</label><input type="date" id="approvalDate"/></div>
+      </div>
+      <div class="field-row single">
+        <div class="field">
+          <label>PM signature <span style="font-weight:400;color:var(--muted)">(draw below)</span></label>
+          <div class="sig-wrap"><canvas class="sig-canvas" id="sigCanvas" width="700" height="88"></canvas><button class="sig-clear" onclick="clearSig('sigCanvas','pm')">Clear</button></div>
+          <p class="sig-hint"><i class="ti ti-pencil" style="font-size:12px"></i> Sign with mouse or finger</p>
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <div style="display:flex;align-items:center;margin-bottom:.7rem"><p class="section-label" style="margin-bottom:0"><i class="ti ti-calculator"></i> Accounting processing</p><span class="acct-badge">2nd stamp</span></div>
+      <div class="field-row">
+        <div class="field"><label>Check number</label><input type="text" id="checkNumber" placeholder="e.g. 10482"/></div>
+        <div class="field"><label>Check date</label><input type="date" id="checkDate"/></div>
+      </div>
+      <div class="field-row">
+        <div class="field"><label>Amount paid</label><input type="text" id="checkAmount" placeholder="e.g. $4,250.00"/></div>
+        <div class="field"><label>Accounting approval</label><div class="toggle-row"><button class="tbtn" id="acctApproved" onclick="setAcctApproval('approved')">Approved</button><button class="tbtn" id="acctPending" onclick="setAcctApproval('pending')">Pending</button><button class="tbtn" id="acctHold" onclick="setAcctApproval('hold')">Hold</button></div></div>
+      </div>
+      <div class="field-row single"><div class="field"><label>Additional notes</label><textarea id="acctNotes" placeholder="Retainage, lien waiver, partial payment, etc."></textarea></div></div>
+      <div class="divider"></div>
+      <div class="field-row">
+        <div class="field"><label>Processed by</label><input type="text" id="acctName" placeholder="Accounting staff name"/></div>
+        <div class="field"><label>Processed date</label><input type="date" id="acctDate"/></div>
+      </div>
+      <div class="field-row single">
+        <div class="field">
+          <label>Accounting signature <span style="font-weight:400;color:var(--muted)">(draw below)</span></label>
+          <div class="sig-wrap"><canvas class="sig-canvas" id="acctSigCanvas" width="700" height="88"></canvas><button class="sig-clear" onclick="clearSig('acctSigCanvas','acct')">Clear</button></div>
+          <p class="sig-hint"><i class="ti ti-pencil" style="font-size:12px"></i> Sign with mouse or finger</p>
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <p class="section-label"><i class="ti ti-file-upload"></i> Attach change order PDF</p>
+      <div class="upload-zone" onclick="document.getElementById('pdfUpload').click()" id="uploadZone">
+        <i class="ti ti-file-description"></i>
+        <p id="uploadLabel">Click to upload a change order PDF</p>
+        <p style="font-size:11px;margin-top:4px">PDF files only</p>
+      </div>
+      <input type="file" id="pdfUpload" accept="application/pdf" style="display:none" onchange="handleUpload(event)"/>
+    </div>
+    <div class="stamps-row">
+      <div class="stamp-card">
+        <p class="section-label" style="font-size:10px;margin-bottom:8px"><i class="ti ti-stamp"></i> PM stamp</p>
+        <div class="stamp-box">
+          <div class="stamp-hdr"><span class="stitle">PM Approval</span><div class="sbrand"><div class="sbrand-ico" style="background:var(--red)">R</div><span class="sbrand-name" style="color:var(--red)">Red Door Construction</span></div></div>
+          <div class="sgrid">
+            <div class="sf"><span class="sfl">Project</span><span class="sfv" id="sp-project">—</span></div>
+            <div class="sf"><span class="sfl">Vendor</span><span class="sfv" id="sp-vendor">—</span></div>
+            <div class="sf"><span class="sfl">CE #</span><span class="sfv" id="sp-ce">—</span></div>
+            <div class="sf"><span class="sfl">Cost code</span><span class="sfv" id="sp-costcode">—</span></div>
+            <div class="sf"><span class="sfl">Scope</span><span class="sfv" id="sp-scope">—</span></div>
+            <div class="sf"><span class="sfl">Doc type</span><span class="sfv" id="sp-doctype">—</span></div>
+            <div class="sf" style="grid-column:1/-1"><span class="sfl">Amount</span><span class="sfv" id="sp-amount">—</span></div>
+          </div>
+          <div class="sfoot"><div class="sfootr"><div><div class="sfootl">Approved by</div><div class="sfootv" id="sp-pm">—</div></div><div style="text-align:right"><div class="sfootl">Date</div><div class="sfootv" id="sp-date">—</div></div></div><div class="sig-prev" id="sigPrevWrap" style="display:none"><img id="sigPrevImg" src="" alt="sig"/></div></div>
+        </div>
+      </div>
+      <div class="stamp-card">
+        <p class="section-label" style="font-size:10px;margin-bottom:8px"><i class="ti ti-calculator"></i> Accounting stamp</p>
+        <div class="stamp-box acct">
+          <div class="stamp-hdr"><span class="stitle">Accounting</span><div class="sbrand"><div class="sbrand-ico" style="background:var(--blue)">R</div><span class="sbrand-name" style="color:var(--blue)">Red Door Construction</span></div></div>
+          <div class="sgrid">
+            <div class="sf"><span class="sfl">Check #</span><span class="sfv" id="sa-check">—</span></div>
+            <div class="sf"><span class="sfl">Check date</span><span class="sfv" id="sa-checkdate">—</span></div>
+            <div class="sf"><span class="sfl">Amount paid</span><span class="sfv" id="sa-amount">—</span></div>
+            <div class="sf"><span class="sfl">Status</span><span class="sfv" id="sa-approval">—</span></div>
+          </div>
+          <div class="notes-stamp" id="sa-notes" style="display:none"></div>
+          <div class="sfoot"><div class="sfootr"><div><div class="sfootl">Processed by</div><div class="sfootv" id="sa-name">—</div></div><div style="text-align:right"><div class="sfootl">Date</div><div class="sfootv" id="sa-date">—</div></div></div><div class="sig-prev" id="acctSigPrevWrap" style="display:none"><img id="acctSigPrevImg" src="" alt="sig"/></div></div>
+        </div>
+      </div>
+    </div>
+    <div class="send-notice"><i class="ti ti-mail" style="color:var(--blue)"></i> Will email <strong>accounting@reddoorconstruction.com</strong> &amp; <strong>paola@reddoorconstruction.com</strong></div>
+    <div class="fname-box"><i class="ti ti-file" style="font-size:13px;vertical-align:-2px;margin-right:4px"></i><span id="filenameDisplay">ProjectName_Vendor_CE#_Stamped.pdf</span></div>
+    <button class="dlbtn" id="generateBtn" onclick="generatePDF()"><i class="ti ti-file-download"></i> Download &amp; send stamped PDF</button>
+  </div>
+
+  <!-- TRACKER -->
+  <div class="panel" id="panel-tracker">
+    <h1 class="page-title">CE Tracker</h1>
+    <p class="page-sub">All change orders grouped by project. Syncs live across all PM devices.</p>
+    <div class="summary-row">
+      <div class="sum-card"><div class="sum-label">Pending COs</div><div class="sum-val red" id="sum-pending">0</div></div>
+      <div class="sum-card"><div class="sum-label">Fully complete</div><div class="sum-val green" id="sum-done">0</div></div>
+      <div class="sum-card"><div class="sum-label">In accounting</div><div class="sum-val blue" id="sum-approved">0</div></div>
+      <div class="sum-card"><div class="sum-label">Total CO value</div><div class="sum-val gold" id="sum-total">$0</div></div>
+    </div>
+    <div class="tracker-toolbar">
+      <button class="tbar-btn blue-btn" onclick="openAddCO()"><i class="ti ti-plus"></i> Add pending CO</button>
+      <select class="tbar-select" id="filterPM" onchange="renderTracker()"><option value="">All PMs</option></select>
+      <select class="tbar-select" id="filterStatus" onchange="renderTracker()"><option value="">All statuses</option><option value="pending">Pending</option><option value="approved">Accounting</option></select>
+      <input class="tbar-search" type="text" id="trackerSearch" placeholder="Search CE #, vendor, PM…" oninput="renderTracker()"/>
+      <button class="tbar-btn" onclick="clearTracker()"><i class="ti ti-trash"></i> Clear all</button>
+    </div>
+    <div id="trackerBody"></div>
+  </div>
+
+  <!-- PROJECTS -->
+  <div class="panel" id="panel-projects">
+    <h1 class="page-title">Projects &amp; SharePoint folders</h1>
+    <p class="page-sub">Projects are PM-specific. Syncs live with all your devices.</p>
+    <div class="card">
+      <p class="section-label"><i class="ti ti-building"></i> Active projects</p>
+      <div class="proj-mgr-list" id="projMgrList"></div>
+      <div class="divider"></div>
+      <p class="section-label"><i class="ti ti-plus"></i> Add project</p>
+      <div class="add-proj-form">
+        <input type="text" id="newProjName" placeholder="Project name"/>
+        <input type="url" id="newProjUrl" placeholder="SharePoint folder URL (optional)"/>
+        <button class="drbtn primary" onclick="addProject()"><i class="ti ti-plus"></i> Add</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ADD CO MODAL -->
+<div class="modal-bg" id="addCOModal" style="display:none" onclick="closeAddCO(event)">
+  <div class="modal">
+    <button class="modal-close" onclick="closeAddCO()"><i class="ti ti-x"></i></button>
+    <div class="modal-title">Add pending change order</div>
+    <p style="font-size:13px;color:var(--muted);margin-bottom:1rem">Only <strong>project</strong> and <strong>vendor</strong> are required. Fill in the rest as you have it.</p>
+    <div class="field-row">
+      <div class="field"><label>Project <span style="color:var(--red)">*</span></label><select id="addco-project"><option value="">— Select —</option></select></div>
+      <div class="field"><label>Vendor / subcontractor <span style="color:var(--red)">*</span></label><input type="text" id="addco-vendor" placeholder="e.g. ABC Electric"/></div>
+    </div>
+    <div class="field-row">
+      <div class="field"><label>CE # <span style="font-weight:400;color:var(--muted)">(optional)</span></label><input type="text" id="addco-ce" placeholder="e.g. CE-042"/></div>
+      <div class="field"><label>Amount <span style="font-weight:400;color:var(--muted)">(optional)</span></label><input type="text" id="addco-amount" placeholder="e.g. $4,250.00"/></div>
+    </div>
+    <div class="field-row">
+      <div class="field"><label>Cost code <span style="font-weight:400;color:var(--muted)">(optional)</span></label><input type="text" id="addco-costcode" placeholder="e.g. 03-200"/></div>
+      <div class="field"><label>Document type <span style="font-weight:400;color:var(--muted)">(optional)</span></label><select id="addco-doctype"><option value="">— Select —</option><option value="CCO">CCO</option><option value="SC">SC</option><option value="PO">PO</option><option value="None">None</option></select></div>
+    </div>
+    <div class="field-row">
+      <div class="field"><label>Scope <span style="font-weight:400;color:var(--muted)">(optional)</span></label><select id="addco-scope"><option value="">— Select —</option><option value="in">In scope</option><option value="out">Out of scope</option></select></div>
+      <div class="field"><label>Assigned PM</label><input type="text" id="addco-pm-display" readonly style="opacity:.7"/><input type="hidden" id="addco-pm"/></div>
+    </div>
+    <div class="field-row single"><div class="field"><label>Description</label><input type="text" id="addco-desc" placeholder="Brief description of work"/></div></div>
+    <div style="display:flex;gap:8px;margin-top:.5rem">
+      <button class="drbtn primary" onclick="submitAddCO()" style="flex:1"><i class="ti ti-plus"></i> Add to tracker</button>
+      <button class="drbtn" onclick="closeAddCO()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- PROCORE MODAL -->
+<div class="modal-bg" id="procoreModal" style="display:none" onclick="closeProcoreModal(event)">
+  <div class="modal" style="max-width:380px">
+    <button class="modal-close" onclick="closeProcoreModal()"><i class="ti ti-x"></i></button>
+    <div class="modal-title">Mark as uploaded to Procore</div>
+    <div class="field-row single" style="margin-bottom:.5rem"><div class="field"><label>Procore Change Event # (optional)</label><input type="text" id="procoreCE" placeholder="e.g. CE-042"/></div></div>
+    <div class="field-row single" style="margin-bottom:.5rem"><div class="field"><label>Type created in Procore</label><select id="procoreType"><option value="">— Select —</option><option value="CCO">CCO</option><option value="PCO">PCO</option><option value="Both">Both CCO + PCO</option></select></div></div>
+    <div style="display:flex;gap:8px;margin-top:.75rem"><button class="drbtn primary" onclick="confirmProcore()" style="flex:1"><i class="ti ti-check"></i> Confirm</button><button class="drbtn" onclick="closeProcoreModal()">Cancel</button></div>
+  </div>
+</div>
+
+<!-- DOCUSIGN MODAL -->
+<div class="modal-bg" id="docusignModal" style="display:none" onclick="closeDocusignModal(event)">
+  <div class="modal" style="max-width:380px">
+    <button class="modal-close" onclick="closeDocusignModal()"><i class="ti ti-x"></i></button>
+    <div class="modal-title">Mark as sent via Docusign</div>
+    <div class="field-row single" style="margin-bottom:.5rem"><div class="field"><label>Docusign envelope ID (optional)</label><input type="text" id="docusignID" placeholder="e.g. abc123-..."/></div></div>
+    <div style="display:flex;gap:8px;margin-top:.75rem"><button class="drbtn primary" onclick="confirmDocusign()" style="flex:1"><i class="ti ti-check"></i> Confirm</button><button class="drbtn" onclick="closeDocusignModal()">Cancel</button></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+<canvas id="pdfCanvas" style="display:none"></canvas>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script>
+pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+// ── JSONBIN CONFIG ────────────────────────────────────────────
+const BIN_ID='6a466f40da38895dfe22b546';
+const API_KEY='$2a$10$5BGDE7Pkf1RJ5BPcTBSN3.hKhx19Wj7ImxFrfwoH/j33/KRB8eEHK';
+const BIN_URL=`https://api.jsonbin.io/v3/b/${BIN_ID}`;
+const HEADERS={'Content-Type':'application/json','X-Master-Key':API_KEY,'X-Bin-Meta':'false'};
+let syncTimeout=null;
+let cloudData={tracker:[],projects:{}};
+
+function setSyncStatus(state,label){
+  const dot=document.getElementById('syncDot');
+  const lbl=document.getElementById('syncLabel');
+  dot.className='sync-dot '+state;
+  if(lbl)lbl.textContent=label||'';
+}
+
+async function loadCloud(){
+  setSyncStatus('syncing','Loading…');
+  try{
+    const r=await fetch(BIN_URL+'/latest',{headers:HEADERS});
+    if(r.status===404){
+      // Bin exists but is empty — initialize it
+      cloudData={tracker:[],projects:{}};
+      await saveCloud();
+      setSyncStatus('synced','Synced');
+      return true;
+    }
+    if(!r.ok)throw new Error('HTTP '+r.status);
+    const data=await r.json();
+    cloudData=data||{tracker:[],projects:{}};
+    if(!cloudData.tracker)cloudData.tracker=[];
+    if(!cloudData.projects)cloudData.projects={};
+    setSyncStatus('synced','Synced');
+    return true;
+  }catch(e){
+    console.error('loadCloud error:',e);
+    setSyncStatus('error','Offline');
+    toast('Could not connect to cloud — check internet connection');
+    return false;
+  }
+}
+
+async function saveCloud(){
+  setSyncStatus('syncing','Saving…');
+  try{
+    const r=await fetch(BIN_URL,{
+      method:'PUT',
+      headers:HEADERS,
+      body:JSON.stringify(cloudData)
+    });
+    if(!r.ok)throw new Error('HTTP '+r.status);
+    setSyncStatus('synced','Saved');
+  }catch(e){
+    console.error('saveCloud error:',e);
+    setSyncStatus('error','Save failed');
+    toast('Cloud save failed — changes may not persist');
+  }
+}
+
+function scheduleSave(){
+  clearTimeout(syncTimeout);
+  syncTimeout=setTimeout(saveCloud,1200);
+}
+
+// ── PM CONFIG ─────────────────────────────────────────────────
+const PMS=[
+  {name:"Ashley Maha'a",   initials:'AM',color:'#7F77DD'},
+  {name:'Diedra Chatman',  initials:'DC',color:'#1D9E75'},
+  {name:'Valentina Salcedo',initials:'VS',color:'#D85A30'},
+  {name:'Jannette Cruz',   initials:'JC',color:'#D4537E'},
+];
+const ACCT_EMAILS=['accounting@reddoorconstruction.com','paola@reddoorconstruction.com'];
+const DRAFT_PREFIX='rdc_draft_v3_';
+let currentPM=null;
+let scopeVal=null,docType=null,acctApproval=null,uploadedFile=null,sigData=null,acctSigData=null;
+let activeProcoreId=null,activeDocusignId=null;
+
+// ── PROJECTS ──────────────────────────────────────────────────
+function pmProjKey(){return currentPM?currentPM.name:'shared';}
+function getProjects(){return(cloudData.projects&&cloudData.projects[pmProjKey()])||[];}
+function saveProjects(projs){if(!cloudData.projects)cloudData.projects={};cloudData.projects[pmProjKey()]=projs;scheduleSave();}
+
+function normalizeUrl(u){u=(u||'').trim();if(!u)return'';if(!/^https?:\/\//i.test(u))u='https://'+u;return u;}
+function addProject(){
+  const name=document.getElementById('newProjName').value.trim();
+  const url=normalizeUrl(document.getElementById('newProjUrl').value);
+  if(!name){toast('Enter a project name');return;}
+  const projs=getProjects();
+  if(projs.find(p=>p.name===name)){toast('Project already exists');return;}
+  projs.push({name,url,createdAt:new Date().toLocaleString()});
+  saveProjects(projs);
+  document.getElementById('newProjName').value='';document.getElementById('newProjUrl').value='';
+  renderProjectManager();populateProjectSelects();toast('Project added: '+name);
+}
+function deleteProject(name){
+  if(!confirm('Remove "'+name+'"?'))return;
+  saveProjects(getProjects().filter(p=>p.name!==name));
+  renderProjectManager();populateProjectSelects();toast('Project removed');
+}
+function editProjectUrl(name){
+  const projs=getProjects();const p=projs.find(x=>x.name===name);if(!p)return;
+  const url=prompt('SharePoint URL for "'+name+'":', p.url||'');
+  if(url===null)return;
+  p.url=normalizeUrl(url);saveProjects(projs);renderProjectManager();toast('Folder URL updated');
+}
+function openProjectFolder(url){
+  if(!url){toast('No folder URL set');return;}
+  const w=window.open(url,'_blank','noopener');
+  if(!w)toast('Allow pop-ups for this page to open folders');
+}
+function renderProjectManager(){
+  const projs=getProjects();
+  const el=document.getElementById('projMgrList');
+  if(!projs.length){el.innerHTML=`<div style="font-size:13px;color:var(--muted2);padding:.5rem 0">No projects yet. Add one below.</div>`;return;}
+  el.innerHTML=projs.map(p=>{
+    const safeUrl=(p.url||'').trim();
+    return`<div class="proj-row">
+      <div class="proj-row-name">${p.name}</div>
+      <div class="proj-row-url ${safeUrl?'':'empty'}">${safeUrl?`<span onclick="openProjectFolder('${safeUrl.replace(/'/g,"\\'")}')"><i class="ti ti-brand-sharepoint" style="font-size:13px;vertical-align:-2px;margin-right:3px;color:var(--blue)"></i>${safeUrl}</span>`:'No folder URL set'}</div>
+      <div class="proj-row-actions">
+        <button class="icon-btn" onclick="editProjectUrl('${p.name.replace(/'/g,"\\'")}')"><i class="ti ti-link"></i></button>
+        <button class="icon-btn" onclick="deleteProject('${p.name.replace(/'/g,"\\'")}')"><i class="ti ti-trash"></i></button>
+      </div>
+    </div>`;
+  }).join('');
+}
+function populateProjectSelects(){
+  const projs=getProjects();
+  const o1='<option value="">— Select project —</option>'+projs.map(p=>`<option value="${p.name}">${p.name}</option>`).join('');
+  const o2='<option value="">— Select —</option>'+projs.map(p=>`<option value="${p.name}">${p.name}</option>`).join('');
+  document.getElementById('projectName').innerHTML=o1;
+  document.getElementById('addco-project').innerHTML=o2;
+}
+
+// ── LOGIN ─────────────────────────────────────────────────────
+(function buildLogin(){
+  const grid=document.getElementById('pmGrid');
+  PMS.forEach(pm=>{
+    const btn=document.createElement('button');btn.className='pm-btn';
+    btn.innerHTML=`<div class="pm-avatar" style="background:${pm.color}">${pm.initials}</div><div class="pm-name-login">${pm.name}</div>`;
+    btn.onclick=()=>loginAs(pm);grid.appendChild(btn);
+  });
+})();
+
+async function loginAs(pm){
+  currentPM=pm;
+  document.getElementById('loginScreen').style.display='none';
+  document.getElementById('app').style.display='block';
+  document.getElementById('headerAvatar').style.background=pm.color;
+  document.getElementById('headerAvatar').textContent=pm.initials;
+  document.getElementById('headerName').textContent=pm.name;
+  document.getElementById('pmName').value=pm.name;
+  document.getElementById('stampSub').textContent='Logged in as '+pm.name+'. Fill out details, sign, attach PDF, and download.';
+  await loadCloud();
+  populateProjectSelects();renderProjectManager();updatePreview();updateTabBadges();
+  tryAutoLoadDraft();
+}
+
+function switchPM(){
+  if(!confirm('Switch PM? Unsaved changes will be lost.'))return;
+  currentPM=null;clearAll();
+  document.getElementById('app').style.display='none';document.getElementById('loginScreen').style.display='flex';
+}
+
+// ── TABS ──────────────────────────────────────────────────────
+function switchTab(t){
+  document.querySelectorAll('.tab,.panel').forEach(el=>el.classList.remove('active'));
+  document.getElementById('tab-'+t).classList.add('active');document.getElementById('panel-'+t).classList.add('active');
+  if(t==='tracker'){loadCloud().then(()=>renderTracker());}
+  if(t==='projects'){loadCloud().then(()=>{renderProjectManager();populateProjectSelects();});}
+}
+
+// ── TOAST ─────────────────────────────────────────────────────
+function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),3500);}
+
+// ── SIG PADS ──────────────────────────────────────────────────
+function initSig(id,key){
+  const c=document.getElementById(id),ctx=c.getContext('2d');let drawing=false;
+  ctx.strokeStyle='#1E1E1E';ctx.lineWidth=2.2;ctx.lineCap='round';ctx.lineJoin='round';
+  function pos(e){const r=c.getBoundingClientRect(),sx=c.width/r.width,sy=c.height/r.height,s=e.touches?e.touches[0]:e;return{x:(s.clientX-r.left)*sx,y:(s.clientY-r.top)*sy};}
+  c.addEventListener('mousedown',e=>{drawing=true;const p=pos(e);ctx.beginPath();ctx.moveTo(p.x,p.y);});
+  c.addEventListener('mousemove',e=>{if(!drawing)return;const p=pos(e);ctx.lineTo(p.x,p.y);ctx.stroke();});
+  c.addEventListener('mouseup',()=>{drawing=false;storeSig(id,key);});
+  c.addEventListener('mouseleave',()=>{if(drawing){drawing=false;storeSig(id,key);}});
+  c.addEventListener('touchstart',e=>{e.preventDefault();drawing=true;const p=pos(e);ctx.beginPath();ctx.moveTo(p.x,p.y);},{passive:false});
+  c.addEventListener('touchmove',e=>{e.preventDefault();if(!drawing)return;const p=pos(e);ctx.lineTo(p.x,p.y);ctx.stroke();},{passive:false});
+  c.addEventListener('touchend',()=>{drawing=false;storeSig(id,key);});
+}
+function storeSig(id,key){
+  const d=document.getElementById(id).toDataURL('image/png');
+  if(key==='pm'){sigData=d;document.getElementById('sigPrevImg').src=d;document.getElementById('sigPrevWrap').style.display='block';}
+  else{acctSigData=d;document.getElementById('acctSigPrevImg').src=d;document.getElementById('acctSigPrevWrap').style.display='block';}
+}
+function clearSig(id,key){
+  document.getElementById(id).getContext('2d').clearRect(0,0,700,88);
+  if(key==='pm'){sigData=null;document.getElementById('sigPrevWrap').style.display='none';}
+  else{acctSigData=null;document.getElementById('acctSigPrevWrap').style.display='none';}
+}
+initSig('sigCanvas','pm');initSig('acctSigCanvas','acct');
+
+// ── TOGGLES ───────────────────────────────────────────────────
+function setScope(v){scopeVal=v;document.getElementById('scopeIn').className='tbtn'+(v==='in'?' a-in':'');document.getElementById('scopeOut').className='tbtn'+(v==='out'?' a-out':'');updatePreview();}
+function setDoc(v){docType=v;['CCO','SC','PO','None'].forEach(d=>document.getElementById('doc'+d).className='dbtn'+(d===v?' active':''));updatePreview();}
+function setAcctApproval(v){acctApproval=v;document.getElementById('acctApproved').className='tbtn'+(v==='approved'?' a-appr':'');document.getElementById('acctPending').className='tbtn'+(v==='pending'?' a-pend':'');document.getElementById('acctHold').className='tbtn'+(v==='hold'?' a-hold':'');updatePreview();}
+function handleUpload(e){const f=e.target.files[0];if(!f)return;uploadedFile=f;document.getElementById('uploadLabel').textContent=f.name;document.getElementById('uploadZone').style.borderColor='var(--red)';}
+
+['vendorName','ceNumber','costCode','coAmount','coDescription','approvalDate','checkNumber','checkDate','checkAmount','acctNotes','acctName','acctDate'].forEach(id=>{const el=document.getElementById(id);if(el)el.addEventListener('input',updatePreview);});
+document.getElementById('projectName').addEventListener('change',updatePreview);
+
+// ── HELPERS ───────────────────────────────────────────────────
+function slug(s){return(s||'').trim().replace(/\s+/g,'_').replace(/[^a-zA-Z0-9_\-]/g,'');}
+function fname(){return(slug(gv('projectName'))||'ProjectName')+'_'+(slug(gv('vendorName'))||'Vendor')+'_'+(slug(gv('ceNumber'))||'CE#')+'_Stamped.pdf';}
+function fmtD(r){if(!r)return'—';if(r.includes('/'))return r;const[y,m,d]=r.split('-');return m+'/'+d+'/'+y;}
+function gv(id){const el=document.getElementById(id);return el?el.value.trim():'';}
+function parseAmt(s){if(!s)return 0;const n=parseFloat((s+'').replace(/[^0-9.]/g,''));return isNaN(n)?0:n;}
+function fmtUSD(n){return'$'+n.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});}
+function genId(){return Date.now().toString(36)+Math.random().toString(36).slice(2,6);}
+
+// ── PREVIEW ───────────────────────────────────────────────────
+function updatePreview(){
+  document.getElementById('sp-project').textContent=gv('projectName')||'—';
+  document.getElementById('sp-vendor').textContent=gv('vendorName')||'—';
+  document.getElementById('sp-ce').textContent=gv('ceNumber')||'—';
+  document.getElementById('sp-costcode').textContent=gv('costCode')||'—';
+  document.getElementById('sp-amount').textContent=gv('coAmount')||'—';
+  document.getElementById('sp-pm').textContent=currentPM?currentPM.name:'—';
+  document.getElementById('sp-date').textContent=fmtD(document.getElementById('approvalDate').value);
+  document.getElementById('sp-doctype').textContent=docType||'—';
+  const se=document.getElementById('sp-scope');
+  if(scopeVal==='in'){se.textContent='In scope';se.className='sfv c-in';}
+  else if(scopeVal==='out'){se.textContent='Out of scope';se.className='sfv c-out';}
+  else{se.textContent='—';se.className='sfv';}
+  document.getElementById('sa-check').textContent=gv('checkNumber')||'—';
+  document.getElementById('sa-checkdate').textContent=fmtD(document.getElementById('checkDate').value);
+  document.getElementById('sa-amount').textContent=gv('checkAmount')||'—';
+  document.getElementById('sa-name').textContent=gv('acctName')||'—';
+  document.getElementById('sa-date').textContent=fmtD(document.getElementById('acctDate').value);
+  const notes=gv('acctNotes');const ne=document.getElementById('sa-notes');
+  if(notes){ne.textContent=notes;ne.style.display='block';}else{ne.style.display='none';}
+  const ae=document.getElementById('sa-approval');
+  if(acctApproval==='approved'){ae.textContent='Approved';ae.className='sfv c-appr';}
+  else if(acctApproval==='pending'){ae.textContent='Pending';ae.className='sfv c-pend';}
+  else if(acctApproval==='hold'){ae.textContent='On hold';ae.className='sfv c-hold';}
+  else{ae.textContent='—';ae.className='sfv';}
+  document.getElementById('filenameDisplay').textContent=fname();
+}
+
+// ── DRAFT (localStorage — per PM, per browser) ────────────────
+function draftKey(){return DRAFT_PREFIX+(currentPM?slug(currentPM.name):'x');}
+function saveDraft(){
+  try{
+    const d={projectName:gv('projectName'),vendorName:gv('vendorName'),ceNumber:gv('ceNumber'),costCode:gv('costCode'),coAmount:gv('coAmount'),coDescription:gv('coDescription'),approvalDate:document.getElementById('approvalDate').value,checkNumber:gv('checkNumber'),checkDate:document.getElementById('checkDate').value,checkAmount:gv('checkAmount'),acctNotes:gv('acctNotes'),acctName:gv('acctName'),acctDate:document.getElementById('acctDate').value,scopeVal,docType,acctApproval,sigData,acctSigData,savedAt:new Date().toLocaleString()};
+    localStorage.setItem(draftKey(),JSON.stringify(d));
+    document.getElementById('draftStatus').textContent='Saved '+d.savedAt;toast('Draft saved');
+  }catch(e){toast('Could not save draft');}
+}
+function applyFormData(d){
+  if(d.projectName)document.getElementById('projectName').value=d.projectName;
+  ['vendorName','ceNumber','costCode','coAmount','coDescription','acctNotes','acctName'].forEach(id=>{if(d[id]!==undefined)document.getElementById(id).value=d[id];});
+  ['approvalDate','checkDate','checkNumber','checkAmount','acctDate'].forEach(id=>{if(d[id]!==undefined)document.getElementById(id).value=d[id];});
+  if(d.scopeVal)setScope(d.scopeVal);if(d.docType)setDoc(d.docType);if(d.acctApproval)setAcctApproval(d.acctApproval);
+  if(d.sigData){sigData=d.sigData;const c=document.getElementById('sigCanvas'),img=new Image();img.onload=()=>c.getContext('2d').drawImage(img,0,0,700,88);img.src=sigData;document.getElementById('sigPrevImg').src=sigData;document.getElementById('sigPrevWrap').style.display='block';}
+  if(d.acctSigData){acctSigData=d.acctSigData;const c=document.getElementById('acctSigCanvas'),img=new Image();img.onload=()=>c.getContext('2d').drawImage(img,0,0,700,88);img.src=acctSigData;document.getElementById('acctSigPrevImg').src=acctSigData;document.getElementById('acctSigPrevWrap').style.display='block';}
+  updatePreview();
+}
+function tryAutoLoadDraft(){try{const raw=localStorage.getItem(draftKey());if(raw){const d=JSON.parse(raw);applyFormData(d);document.getElementById('draftStatus').textContent='Draft restored: '+(d.savedAt||'');}}catch(e){}}
+function loadDraft(){try{const raw=localStorage.getItem(draftKey());if(!raw){toast('No saved draft');return;}const d=JSON.parse(raw);applyFormData(d);document.getElementById('draftStatus').textContent='Loaded: '+(d.savedAt||'');toast('Draft loaded');}catch(e){toast('Error loading draft');}}
+function clearAll(){
+  ['vendorName','ceNumber','costCode','coAmount','coDescription','checkNumber','checkAmount','acctNotes','acctName'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('projectName').value='';
+  document.getElementById('approvalDate').valueAsDate=new Date();document.getElementById('acctDate').valueAsDate=new Date();document.getElementById('checkDate').value='';
+  scopeVal=null;docType=null;acctApproval=null;
+  ['CCO','SC','PO','None'].forEach(d=>document.getElementById('doc'+d).className='dbtn');
+  document.getElementById('scopeIn').className='tbtn';document.getElementById('scopeOut').className='tbtn';
+  ['acctApproved','acctPending','acctHold'].forEach(id=>document.getElementById(id).className='tbtn');
+  clearSig('sigCanvas','pm');clearSig('acctSigCanvas','acct');
+  uploadedFile=null;document.getElementById('uploadLabel').textContent='Click to upload a change order PDF';document.getElementById('uploadZone').style.borderColor='';
+  document.getElementById('draftStatus').textContent='';updatePreview();toast('Form cleared');
+}
+
+// ── TRACKER DATA ──────────────────────────────────────────────
+function getTracker(){return cloudData.tracker||[];}
+function logCO(entry){
+  const t=getTracker();const i=t.findIndex(e=>e.id===entry.id);
+  if(i>=0)t[i]=entry;else t.unshift(entry);
+  cloudData.tracker=t;scheduleSave();updateTabBadges();
+}
+function updateTabBadges(){
+  // Badge shows full team pending count
+  const p=getTracker().filter(e=>e.status==='pending').length;
+  const badge=document.getElementById('pendingBadge');badge.textContent=p;badge.style.background=p>0?'var(--red)':'var(--muted2)';
+}
+function allStepsDone(e){return e.stepStamped&&e.stepProcore&&e.stepDocusign;}
+function approveForAccounting(id){
+  const t=getTracker();const i=t.findIndex(e=>e.id===id);
+  if(i>=0){t[i].status='approved';t[i].approvedAt=new Date().toLocaleString();}
+  cloudData.tracker=t;scheduleSave();renderTracker();updateTabBadges();toast('Moved to accounting');
+}
+function deleteCO(id){
+  if(!confirm('Remove this CO?'))return;
+  cloudData.tracker=getTracker().filter(e=>e.id!==id);
+  scheduleSave();renderTracker();updateTabBadges();toast('CO removed');
+}
+function clearTracker(){
+  if(!confirm('Clear ALL CO records?'))return;
+  cloudData.tracker=[];scheduleSave();renderTracker();updateTabBadges();toast('Tracker cleared');
+}
+
+// Step toggles
+function toggleStampStep(id){const t=getTracker();const i=t.findIndex(e=>e.id===id);if(i<0)return;t[i].stepStamped=!t[i].stepStamped;cloudData.tracker=t;scheduleSave();renderTracker();}
+function openProcoreModal(id){activeProcoreId=id;const e=getTracker().find(x=>x.id===id);document.getElementById('procoreCE').value=e&&e.procoreCE||'';document.getElementById('procoreType').value=e&&e.procoreType||'';document.getElementById('procoreModal').style.display='flex';}
+function closeProcoreModal(ev){if(!ev||ev.target===document.getElementById('procoreModal'))document.getElementById('procoreModal').style.display='none';}
+function confirmProcore(){
+  const t=getTracker();const i=t.findIndex(e=>e.id===activeProcoreId);
+  if(i>=0){t[i].stepProcore=true;t[i].procoreCE=document.getElementById('procoreCE').value.trim();t[i].procoreType=document.getElementById('procoreType').value;}
+  cloudData.tracker=t;scheduleSave();closeProcoreModal();renderTracker();toast('Procore step marked complete');
+}
+function openDocusignModal(id){activeDocusignId=id;const e=getTracker().find(x=>x.id===id);document.getElementById('docusignID').value=e&&e.docusignID||'';document.getElementById('docusignModal').style.display='flex';}
+function closeDocusignModal(ev){if(!ev||ev.target===document.getElementById('docusignModal'))document.getElementById('docusignModal').style.display='none';}
+function confirmDocusign(){
+  const t=getTracker();const i=t.findIndex(e=>e.id===activeDocusignId);
+  if(i>=0){t[i].stepDocusign=true;t[i].docusignID=document.getElementById('docusignID').value.trim();}
+  cloudData.tracker=t;scheduleSave();closeDocusignModal();renderTracker();toast('Docusign step marked complete');
+  const entry=getTracker().find(e=>e.id===activeDocusignId);
+  if(entry&&allStepsDone(entry)&&entry.status==='pending'){setTimeout(()=>{if(confirm('All 3 steps complete! Move to accounting now?'))approveForAccounting(activeDocusignId);},300);}
+}
+
+// ── ADD CO MODAL ──────────────────────────────────────────────
+function openAddCO(){
+  populateProjectSelects();
+  ['addco-project','addco-vendor','addco-ce','addco-amount','addco-costcode','addco-desc'].forEach(id=>{document.getElementById(id).value='';});
+  document.getElementById('addco-doctype').value='';document.getElementById('addco-scope').value='';
+  document.getElementById('addco-pm').value=currentPM?currentPM.name:'';
+  document.getElementById('addco-pm-display').value=currentPM?currentPM.name:'';
+  document.getElementById('addCOModal').style.display='flex';
+}
+function closeAddCO(ev){if(!ev||ev.target===document.getElementById('addCOModal'))document.getElementById('addCOModal').style.display='none';}
+function submitAddCO(){
+  const proj=document.getElementById('addco-project').value;
+  const vendor=document.getElementById('addco-vendor').value.trim();
+  if(!proj||!vendor){toast('Project and vendor are required');return;}
+  const entry={id:genId(),project:proj,vendor,ceNumber:document.getElementById('addco-ce').value.trim(),amount:document.getElementById('addco-amount').value.trim(),costCode:document.getElementById('addco-costcode').value.trim(),docType:document.getElementById('addco-doctype').value,scope:document.getElementById('addco-scope').value,pm:document.getElementById('addco-pm').value||currentPM?.name||'',description:document.getElementById('addco-desc').value.trim(),status:'pending',source:'manual',loggedAt:new Date().toISOString(),stepStamped:false,stepProcore:false,stepDocusign:false};
+  logCO(entry);closeAddCO();renderTracker();toast('CO added to tracker');
+}
+
+// ── RENDER TRACKER ────────────────────────────────────────────
+function renderTracker(){
+  const allTracker=getTracker();
+  const search=(document.getElementById('trackerSearch').value||'').toLowerCase();
+  const filterStatus=document.getElementById('filterStatus').value;
+
+  // Populate PM filter dropdown
+  const pmSel=document.getElementById('filterPM');
+  const curPMFilter=pmSel.value;
+  const pmNames=[...new Set(allTracker.map(e=>e.pm).filter(Boolean))].sort();
+  pmSel.innerHTML='<option value="">All PMs</option>'+pmNames.map(p=>`<option value="${p}"${p===curPMFilter?' selected':''}>${p}</option>`).join('');
+  const filterPMVal=pmSel.value;
+
+  // All team COs visible to everyone
+  const filtered=allTracker.filter(e=>{
+    if(filterPMVal&&e.pm!==filterPMVal)return false;
+    if(filterStatus&&e.status!==filterStatus)return false;
+    if(search&&![e.project,e.vendor,e.ceNumber,e.description,e.pm].filter(Boolean).join(' ').toLowerCase().includes(search))return false;
+    return true;
+  });
+
+  // Summary = full team
+  document.getElementById('sum-pending').textContent=allTracker.filter(e=>e.status==='pending').length;
+  document.getElementById('sum-done').textContent=allTracker.filter(e=>e.status==='pending'&&allStepsDone(e)).length;
+  document.getElementById('sum-approved').textContent=allTracker.filter(e=>e.status==='approved').length;
+  document.getElementById('sum-total').textContent=fmtUSD(allTracker.reduce((s,e)=>s+parseAmt(e.amount),0));
+
+  // Merge all PMs' projects for grouping
+  const allPMProjects=Object.values(cloudData.projects||{}).flat();
+  const allProjs=[...new Map(allPMProjects.map(p=>[p.name,p])).values()];
+
+  // Group by all projects that appear in filtered results
+  const projects=[...new Set([
+    ...allProjs.map(p=>p.name),
+    ...filtered.map(e=>e.project||'No project')
+  ])].filter(p=>filtered.some(e=>(e.project||'No project')===p)).sort();
+  const body=document.getElementById('trackerBody');
+  if(!filtered.length){body.innerHTML='<div style="text-align:center;padding:3rem;color:var(--muted2);font-size:14px"><i class="ti ti-folders" style="font-size:32px;display:block;margin-bottom:.75rem;opacity:.3"></i>No change orders yet</div>';return;}
+
+  body.innerHTML=projects.map(proj=>{
+    const entries=filtered.filter(e=>(e.project||'No project')===proj);
+    const pending=entries.filter(e=>e.status==='pending');
+    const approved=entries.filter(e=>e.status==='approved');
+    const projTotal=fmtUSD(entries.reduce((s,e)=>s+parseAmt(e.amount),0));
+    const projData=allProjs.find(p=>p.name===proj);
+    const projUrl=projData&&(projData.url||'').trim();
+    const spLink=projUrl?`<span class="proj-sp-link" onclick="openProjectFolder('${projUrl.replace(/'/g,"\\'")}')"><i class="ti ti-brand-sharepoint" style="font-size:12px"></i> Open folder</span>`:`<span class="proj-sp-setup" onclick="switchTab('projects')"><i class="ti ti-link" style="font-size:12px"></i> Set folder</span>`;
+    return`<div class="proj-group">
+      <div class="proj-group-hdr">
+        <div class="proj-group-left"><div class="proj-group-name"><i class="ti ti-building" style="color:var(--red);font-size:14px;margin-right:4px"></i>${proj}</div>${spLink}</div>
+        <div class="proj-group-stats"><span><b>${entries.length}</b> total</span><span><b>${pending.length}</b> pending</span><span><b>${projTotal}</b></span></div>
+      </div>
+      <div class="folder-cols">
+        <div class="folder-col">
+          <div class="folder-col-hdr pending"><div class="folder-col-title"><i class="ti ti-clock" style="color:#BA7517;font-size:12px"></i> Pending</div><span class="folder-count">${pending.length}</span></div>
+          <div class="folder-body">${pending.length?pending.map(e=>coCard(e)).join(''):'<div class="empty-state"><i class="ti ti-check"></i>All clear</div>'}</div>
+        </div>
+        <div class="folder-col">
+          <div class="folder-col-hdr approved"><div class="folder-col-title"><i class="ti ti-circle-check" style="color:var(--blue);font-size:12px"></i> Accounting</div><span class="folder-count">${approved.length}</span></div>
+          <div class="folder-body">${approved.length?approved.map(e=>coCard(e)).join(''):'<div class="empty-state"><i class="ti ti-inbox"></i>None yet</div>'}</div>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function coCard(e){
+  const pmInfo=PMS.find(p=>p.name===e.pm);const pmColor=pmInfo?pmInfo.color:'#888';
+  const pmInitials=pmInfo?pmInfo.initials:(e.pm||'?').split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
+  const scopeTag=e.scope==='in'?'<span class="tag scope-in">In scope</span>':e.scope==='out'?'<span class="tag scope-out">Out of scope</span>':'';
+  const docTag=e.docType?`<span class="tag doc">${e.docType}</span>`:'';
+  const pmTag=`<span class="tag pm-tag" style="border-color:${pmColor}30"><span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:${pmColor};margin-right:3px;vertical-align:middle"></span>${e.pm||'—'}</span>`;
+  const srcTag=e.source==='manual'?'<span class="tag source">Manual</span>':'<span class="tag source">Stamped</span>';
+  const isPending=e.status==='pending';
+  const hasPdf=!!(e.pdfName);
+  const pdfZone=isPending?`<div class="co-pdf-zone ${hasPdf?'has-pdf':''}" id="pdfzone-${e.id}" ondragover="event.preventDefault();this.classList.add('drag-over')" ondragleave="this.classList.remove('drag-over')" ondrop="handleCardDrop(event,'${e.id}')" onclick="document.getElementById('pdffile-${e.id}').click()"><i class="ti ti-${hasPdf?'file-check':'file-upload'}"></i><span>${hasPdf?e.pdfName:'Drop PDF here or click to upload'}</span>${hasPdf?`<span class="pdf-clear" onclick="event.stopPropagation();clearCardPdf('${e.id}')"><i class="ti ti-x"></i></span>`:''}</div><input type="file" id="pdffile-${e.id}" accept="application/pdf" style="display:none" onchange="handleCardFile(event,'${e.id}')"/>`:'';;
+  let checklist='',actions='';
+  if(isPending){
+    const s1=e.stepStamped,s2=e.stepProcore,s3=e.stepDocusign;
+    const pcNote=e.procoreCE?` <span class="cl-note">CE: ${e.procoreCE}${e.procoreType?' · '+e.procoreType:''}</span>`:'';
+    const dsNote=e.docusignID?` <span class="cl-note">Env: ${e.docusignID}</span>`:'';
+    checklist=`<div class="co-checklist">
+      <div class="cl-item"><div class="cl-check ${s1?'done':''}" onclick="toggleStampStep('${e.id}')"></div><span class="cl-label ${s1?'done':''}">Stamped &amp; downloaded</span>${!s1?`<button class="cl-action" onclick="prefillStamp('${e.id}')">Stamp now →</button>`:''}</div>
+      <div class="cl-item"><div class="cl-check ${s2?'done':''}" onclick="${s2?'':'openProcoreModal(\''+e.id+'\')'}"></div><span class="cl-label ${s2?'done':''}">Uploaded to Procore${pcNote}</span>${!s2?`<button class="cl-action" onclick="openProcoreModal('${e.id}')">Mark done →</button>`:''}</div>
+      <div class="cl-item"><div class="cl-check ${s3?'done':''}" onclick="${s3?'':'openDocusignModal(\''+e.id+'\')'}"></div><span class="cl-label ${s3?'done':''}">Sent via Docusign${dsNote}</span>${!s3?`<button class="cl-action" onclick="openDocusignModal('${e.id}')">Mark done →</button>`:''}</div>
+    </div>`;
+    const allDone=s1&&s2&&s3;
+    actions=allDone?`<div class="all-done-banner"><i class="ti ti-circle-check"></i> All steps complete — ready for accounting</div><div class="co-card-actions"><button class="ca-btn approve-btn" onclick="approveForAccounting('${e.id}')"><i class="ti ti-arrow-right"></i> Move to accounting</button><button class="ca-btn del" onclick="deleteCO('${e.id}')"><i class="ti ti-trash"></i></button></div>`:`<div class="co-card-actions"><button class="ca-btn del" onclick="deleteCO('${e.id}')"><i class="ti ti-trash"></i></button></div>`;
+  }else{
+    actions=`<div class="co-card-actions"><button class="ca-btn" onclick="emailFromTracker('${e.id}')"><i class="ti ti-mail"></i> Email accounting</button><button class="ca-btn del" onclick="deleteCO('${e.id}')"><i class="ti ti-trash"></i></button></div>`;
+  }
+  return`<div class="co-card">
+    <div class="co-card-top"><span class="co-title">${e.ceNumber||'No CE#'} — ${e.vendor||'Unknown'}</span><span class="co-amt">${e.amount||'—'}</span></div>
+    <div class="co-meta">${e.description||''}${e.loggedAt?' · '+new Date(e.loggedAt).toLocaleDateString():''}</div>
+    <div class="co-tags">${scopeTag}${docTag}${pmTag}${srcTag}</div>
+    ${pdfZone}${checklist}${actions}
+  </div>`;
+}
+
+// PDF attachment
+function handleCardDrop(event,id){event.preventDefault();const z=document.getElementById('pdfzone-'+id);if(z)z.classList.remove('drag-over');const f=event.dataTransfer.files[0];if(!f||f.type!=='application/pdf'){toast('Please drop a PDF file');return;}attachPdfToCard(id,f);}
+function handleCardFile(event,id){const f=event.target.files[0];if(!f)return;attachPdfToCard(id,f);}
+function attachPdfToCard(id,file){
+  const reader=new FileReader();
+  reader.onload=ev=>{
+    const base64=ev.target.result.split(',')[1];
+    const t=getTracker();const i=t.findIndex(e=>e.id===id);
+    if(i>=0){t[i].pdfData=base64;t[i].pdfName=file.name;}
+    cloudData.tracker=t;scheduleSave();renderTracker();toast('PDF attached: '+file.name);
+  };reader.readAsDataURL(file);
+}
+function clearCardPdf(id){const t=getTracker();const i=t.findIndex(e=>e.id===id);if(i>=0){delete t[i].pdfData;delete t[i].pdfName;}cloudData.tracker=t;scheduleSave();renderTracker();toast('PDF removed');}
+
+// Pre-fill stamp
+function prefillStamp(id){
+  const e=getTracker().find(x=>x.id===id);if(!e)return;
+  switchTab('stamp');
+  setTimeout(()=>{
+    if(e.project)document.getElementById('projectName').value=e.project;
+    if(e.vendor)document.getElementById('vendorName').value=e.vendor;
+    if(e.ceNumber)document.getElementById('ceNumber').value=e.ceNumber;
+    if(e.amount)document.getElementById('coAmount').value=e.amount;
+    if(e.costCode)document.getElementById('costCode').value=e.costCode;
+    if(e.description)document.getElementById('coDescription').value=e.description;
+    if(e.scope)setScope(e.scope);if(e.docType)setDoc(e.docType);
+    document.getElementById('approvalDate').valueAsDate=new Date();
+    if(e.pdfData&&e.pdfName){try{const b=atob(e.pdfData),ab=new ArrayBuffer(b.length),ia=new Uint8Array(ab);for(let i=0;i<b.length;i++)ia[i]=b.charCodeAt(i);uploadedFile=new File([ab],e.pdfName,{type:'application/pdf'});document.getElementById('uploadLabel').textContent=e.pdfName+' (from tracker)';document.getElementById('uploadZone').style.borderColor='var(--green)';}catch(ex){}}
+    updatePreview();toast(e.pdfName?'Pre-filled with attached PDF — sign and download':'Pre-filled — attach PDF, sign, and download');
+  },100);
+}
+
+// Email from tracker
+function emailFromTracker(id){
+  const e=getTracker().find(x=>x.id===id);if(!e)return;
+  const scopeStr=e.scope==='in'?'In scope':e.scope==='out'?'Out of scope':'—';
+  const subject=encodeURIComponent(`PM-Approved Change Order – ${e.project} / ${e.vendor} / ${e.ceNumber}`);
+  const body=encodeURIComponent(`Hi,\n\nPlease find the PM-approved change order for processing. The stamped PDF is attached.\n\n── PM APPROVAL ──────────────────\nProject:       ${e.project}\nVendor:        ${e.vendor}\nCE #:          ${e.ceNumber}\nScope:         ${scopeStr}\nCost Code:     ${e.costCode||'N/A'}\nDoc Type:      ${e.docType||'N/A'}\nAmount:        ${e.amount||'N/A'}\nApproved By:   ${e.pm}\n\n── PROCESSING ───────────────────\nProcore CE #:  ${e.procoreCE||'N/A'}\nProcore Type:  ${e.procoreType||'N/A'}\nDocusign Env:  ${e.docusignID||'N/A'}\n\nThank you,\n${e.pm||'Red Door Construction LLC'}`);
+  window.location.href=`mailto:${ACCT_EMAILS.join(',')}?subject=${subject}&body=${body}`;
+  toast('Opening email — attach the stamped PDF');
+}
+
+// ── PDF STAMP ─────────────────────────────────────────────────
+function drawStamp(doc,sx,sy,sw,sh,fields,footer,bc,sigImg){
+  const[r,g,b]=bc;
+  doc.setFillColor(255,255,255);doc.setDrawColor(r,g,b);doc.setLineWidth(1.5);doc.roundedRect(sx,sy,sw,sh,3,3,'FD');
+  doc.setLineWidth(0.5);doc.line(sx,sy+22,sx+sw,sy+22);
+  doc.setFillColor(r,g,b);doc.roundedRect(sx+8,sy+5,13,13,1,1,'F');
+  doc.setFont('helvetica','bold');doc.setFontSize(9);doc.setTextColor(255,255,255);doc.text('R',sx+12.5,sy+14);
+  doc.setFontSize(7.5);doc.setTextColor(r,g,b);doc.text(fields.title,sx+25,sy+13);
+  doc.setFont('helvetica','normal');doc.setFontSize(6);doc.setTextColor(r,g,b);doc.text('RED DOOR CONSTRUCTION LLC',sx+sw-8,sy+13,{align:'right'});
+  let fy=sy+32;
+  fields.rows.forEach((row,i)=>{
+    const col=i%2===0?sx+8:sx+sw/2+4,ry=fy+Math.floor(i/2)*20;
+    doc.setFont('helvetica','normal');doc.setFontSize(6);doc.setTextColor(140,135,128);doc.text(row[0],col,ry);
+    doc.setFont('helvetica','bold');doc.setFontSize(8);const vc=row[2]||[30,30,30];doc.setTextColor(vc[0],vc[1],vc[2]);
+    doc.text(doc.splitTextToSize(row[1],sw/2-12)[0],col,ry+8);
+  });
+  if(fields.notes){const ny=sy+sh-38;doc.setDrawColor(220,215,208);doc.setLineWidth(0.4);doc.line(sx+8,ny-2,sx+sw-8,ny-2);doc.setFont('helvetica','normal');doc.setFontSize(6.5);doc.setTextColor(120,115,108);doc.text(doc.splitTextToSize(fields.notes,sw-16).slice(0,2),sx+8,ny+5);}
+  const fy2=sy+sh-(sigImg?30:16);
+  doc.setDrawColor(220,215,208);doc.setLineWidth(0.4);doc.line(sx+8,fy2-4,sx+sw-8,fy2-4);
+  doc.setFont('helvetica','normal');doc.setFontSize(6);doc.setTextColor(140,135,128);doc.text(footer.ll,sx+8,fy2+1);
+  doc.setFont('helvetica','bolditalic');doc.setFontSize(7.5);doc.setTextColor(30,30,30);doc.text(footer.lv,sx+8,fy2+9);
+  doc.setFont('helvetica','normal');doc.setFontSize(6);doc.setTextColor(140,135,128);doc.text(footer.rl,sx+sw-8,fy2+1,{align:'right'});
+  doc.setFont('helvetica','bold');doc.setFontSize(7.5);doc.setTextColor(30,30,30);doc.text(footer.rv,sx+sw-8,fy2+9,{align:'right'});
+  if(sigImg){try{doc.addImage(sigImg,'PNG',sx+8,fy2+12,sw-16,16);}catch(ex){}}
+}
+
+async function generatePDF(){
+  const proj=gv('projectName'),vendor=gv('vendorName'),ce=gv('ceNumber'),pm=currentPM?currentPM.name:'',pmDate=document.getElementById('approvalDate').value;
+  if(!proj||!vendor||!ce||!pm||!pmDate||!scopeVal||!docType){toast('Complete all required PM stamp fields');return;}
+  const btn=document.getElementById('generateBtn');btn.disabled=true;btn.innerHTML='<i class="ti ti-loader"></i> Generating…';
+  try{
+    const{jsPDF}=window.jspdf,doc=new jsPDF({orientation:'portrait',unit:'pt',format:'letter'}),pw=doc.internal.pageSize.getWidth(),ph=doc.internal.pageSize.getHeight();
+    if(uploadedFile){
+      const buf=await uploadedFile.arrayBuffer(),pdfd=await pdfjsLib.getDocument({data:buf}).promise,cv=document.getElementById('pdfCanvas');
+      cv.style.display='block';
+      for(let pn=1;pn<=pdfd.numPages;pn++){if(pn>1)doc.addPage();const pg=await pdfd.getPage(pn),vp=pg.getViewport({scale:2.0});cv.width=vp.width;cv.height=vp.height;await pg.render({canvasContext:cv.getContext('2d'),viewport:vp}).promise;doc.addImage(cv.toDataURL('image/jpeg',0.92),'JPEG',0,0,pw,ph);}
+      cv.style.display='none';
+    }else{doc.setFillColor(250,248,245);doc.rect(0,0,pw,ph,'F');doc.setFontSize(11);doc.setTextColor(160,155,148);doc.text('No source document uploaded — stamps only',pw/2,ph/2,{align:'center'});}
+    const cc=gv('costCode')||'—',amt=gv('coAmount')||'—',desc=gv('coDescription');
+    const scope=scopeVal==='in'?'In scope':'Out of scope',sc=scopeVal==='in'?[59,109,17]:[163,45,45];
+    const sw=215,pmSH=sigData?175:152;
+    drawStamp(doc,pw-sw-16,16,sw,pmSH,{title:'PM APPROVAL',rows:[['PROJECT',proj],['VENDOR',vendor],['CE #',ce],['COST CODE',cc],['SCOPE',scope,sc],['DOC TYPE',docType||'—'],['AMOUNT',amt]]},{ll:'APPROVED BY',lv:pm,rl:'DATE',rv:fmtD(pmDate)},[192,41,26],sigData);
+    const cn=gv('checkNumber')||'—',ca=gv('checkAmount')||'—',an=gv('acctName')||'—',notes=gv('acctNotes');
+    const al=acctApproval==='approved'?'Approved':acctApproval==='pending'?'Pending':acctApproval==='hold'?'On hold':'—';
+    const ac=acctApproval==='approved'?[59,109,17]:acctApproval==='pending'?[133,79,11]:acctApproval==='hold'?[163,45,45]:[30,30,30];
+    const aSH=(notes?20:0)+(acctSigData?175:152);
+    drawStamp(doc,pw-sw-16,16+pmSH+10,sw,aSH,{title:'ACCOUNTING',rows:[['CHECK #',cn],['CHECK DATE',fmtD(document.getElementById('checkDate').value)],['AMOUNT PAID',ca],['STATUS',al,ac]],notes:notes||null},{ll:'PROCESSED BY',lv:an,rl:'DATE',rv:fmtD(document.getElementById('acctDate').value)},[24,95,165],acctSigData);
+    const filename=fname();doc.save(filename);
+
+    // Log to cloud tracker
+    const existingEntry=getTracker().find(e=>e.project===proj&&e.ceNumber===ce&&e.vendor===vendor);
+    const entryId=existingEntry?.id||genId();
+    const entry={id:entryId,project:proj,vendor,ceNumber:ce,amount:amt,scope:scopeVal,docType,costCode:cc,description:desc,pm,approvalDate:fmtD(pmDate),checkNumber:cn,checkDate:fmtD(document.getElementById('checkDate').value),checkAmount:ca,acctNotes:notes,acctName:an,acctDate:fmtD(document.getElementById('acctDate').value),status:'pending',source:'stamp',loggedAt:existingEntry?.loggedAt||new Date().toISOString(),filename,stepStamped:true,stepProcore:existingEntry?.stepProcore||false,stepDocusign:existingEntry?.stepDocusign||false,procoreCE:existingEntry?.procoreCE||'',procoreType:existingEntry?.procoreType||'',docusignID:existingEntry?.docusignID||''};
+    logCO(entry);saveDraft();
+
+    setTimeout(()=>{
+      const subject=encodeURIComponent(`PM-Approved Change Order – ${proj} / ${vendor} / ${ce}`);
+      const body=encodeURIComponent(`Hi,\n\nPlease find the PM-approved change order attached.\n\nProject:       ${proj}\nVendor:        ${vendor}\nCE #:          ${ce}\nScope:         ${scope}\nCost Code:     ${cc}\nDoc Type:      ${docType}\nAmount:        ${amt}\nApproved By:   ${pm}\nDate:          ${fmtD(pmDate)}\n\nThank you,\n${pm}\nRed Door Construction LLC`);
+      window.location.href=`mailto:${ACCT_EMAILS.join(',')}?subject=${subject}&body=${body}`;
+    },800);
+    toast('Downloaded & synced — opening email…');
+  }catch(err){console.error(err);toast('Error generating PDF');}
+  btn.disabled=false;btn.innerHTML='<i class="ti ti-file-download"></i> Download &amp; send stamped PDF';
+}
+
+document.getElementById('approvalDate').valueAsDate=new Date();
+document.getElementById('acctDate').valueAsDate=new Date();
+</script>
+</body>
+</html>

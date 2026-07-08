@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Red Door Construction — Executive CO Dashboard</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.9.0/dist/tabler-icons.min.css"/>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --red:#C0291A;--red-dark:#8F1F13;--blue:#3E7CB8;--gold:#C99A3D;--green:#5B9E5A;
+  --paper:#EFEBE2;--paper2:#F7F4ED;--ink:#1C1A17;--ink-soft:#4A4640;--ink-faint:#8A8478;
+  --line:rgba(28,26,23,.12);--line-soft:rgba(28,26,23,.06);
+  --board:#22201C;--board2:#2B2823;--r:6px;--rl:10px;
+}
+body{
+  font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+  background:var(--paper);
+  background-image:linear-gradient(var(--line-soft) 1px,transparent 1px),linear-gradient(90deg,var(--line-soft) 1px,transparent 1px);
+  background-size:48px 48px;
+  color:var(--ink);min-height:100vh;
+}
+.masthead{background:var(--board);background-image:repeating-linear-gradient(135deg,rgba(255,255,255,.015) 0 2px,transparent 2px 40px);color:var(--paper2);padding:2rem 2rem 1.5rem;border-bottom:3px solid var(--red);}
+.masthead-inner{max-width:1300px;margin:0 auto;display:flex;align-items:flex-end;justify-content:space-between;flex-wrap:wrap;gap:1.5rem;}
+.masthead-id{display:flex;align-items:center;gap:14px;}
+.stamp-mark{width:52px;height:52px;border:2.5px solid var(--red);border-radius:6px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:21px;color:var(--red);transform:rotate(-3deg);flex-shrink:0;}
+.masthead-titles h1{font-size:24px;font-weight:600;letter-spacing:-.01em;}
+.masthead-titles .doc-sub{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:rgba(245,243,239,.4);margin-top:5px;font-family:'SF Mono',monospace;}
+.masthead-right{display:flex;align-items:center;gap:1.5rem;flex-wrap:wrap;}
+.mm-block{text-align:right;}
+.mm-label{font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;color:rgba(245,243,239,.4);margin-bottom:3px;font-family:'SF Mono',monospace;}
+.mm-val{font-size:14px;font-weight:600;color:var(--paper2);}
+.sync-row{display:flex;align-items:center;gap:7px;}
+.sync-dot{width:8px;height:8px;border-radius:50%;background:var(--ink-faint);}
+.sync-dot.syncing{background:var(--gold);animation:pulse .8s infinite;}
+.sync-dot.synced{background:var(--green);}
+.sync-dot.error{background:var(--red);}
+@keyframes pulse{0%,100%{opacity:1;}50%{opacity:.35;}}
+.sync-label{font-size:11px;color:rgba(245,243,239,.5);font-family:'SF Mono',monospace;}
+.refresh-btn{padding:6px 12px;border-radius:var(--r);border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.07);color:rgba(245,243,239,.8);font-size:12px;font-weight:500;cursor:pointer;font-family:inherit;display:flex;align-items:center;gap:5px;transition:background .15s;}
+.refresh-btn:hover{background:rgba(255,255,255,.14);}
+
+/* LOADING */
+#loadingState{max-width:480px;margin:5rem auto;padding:2rem;text-align:center;}
+.loading-spinner{width:36px;height:36px;border:3px solid var(--line);border-top-color:var(--red);border-radius:50%;animation:spin 1s linear infinite;margin:0 auto 1.25rem;}
+@keyframes spin{to{transform:rotate(360deg);}}
+
+/* DASH */
+.dash{max-width:1300px;margin:0 auto;padding:2rem;}
+.dash-toolbar{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:1.75rem;}
+.t-btn{padding:7px 13px;border-radius:var(--r);border:1px solid var(--line);background:var(--paper2);color:var(--ink-soft);font-size:12.5px;font-weight:500;cursor:pointer;display:flex;align-items:center;gap:6px;font-family:inherit;transition:all .15s;}
+.t-btn:hover{border-color:var(--red);color:var(--red);}
+.t-btn.primary{background:var(--red);color:#fff;border-color:var(--red);}
+.t-btn.primary:hover{background:var(--red-dark);}
+
+/* KPI */
+.kpi-row{display:grid;grid-template-columns:repeat(5,1fr);gap:1px;background:var(--line);border:1px solid var(--line);border-radius:var(--rl);overflow:hidden;margin-bottom:2rem;}
+@media(max-width:900px){.kpi-row{grid-template-columns:repeat(2,1fr);}}
+.kpi{background:var(--paper2);padding:1.1rem 1.25rem;position:relative;}
+.kpi.alert::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:var(--red);}
+.kpi-label{font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-faint);margin-bottom:6px;font-family:'SF Mono',monospace;}
+.kpi-val{font-size:30px;font-weight:600;letter-spacing:-.02em;line-height:1;}
+.kpi-val.red{color:var(--red);}.kpi-val.gold{color:var(--gold);}.kpi-val.green{color:var(--green);}
+.kpi-sub{font-size:11px;color:var(--ink-faint);margin-top:5px;}
+
+/* SECTION */
+.section-hdr{display:flex;align-items:baseline;justify-content:space-between;margin:2rem 0 .9rem;border-bottom:1.5px solid var(--ink);padding-bottom:.5rem;}
+.section-hdr h2{font-size:15px;font-weight:600;display:flex;align-items:center;gap:8px;}
+.section-hdr .sh-note{font-size:11px;color:var(--ink-faint);font-family:'SF Mono',monospace;}
+
+/* AGING */
+.aging-board{background:var(--paper2);border:1px solid var(--line);border-radius:var(--rl);padding:1.5rem;margin-bottom:1.5rem;}
+.aging-legend{display:flex;gap:1.25rem;margin-bottom:1.25rem;flex-wrap:wrap;}
+.al-item{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--ink-soft);}
+.al-swatch{width:10px;height:10px;border-radius:3px;}
+.aging-row{display:grid;grid-template-columns:190px 1fr 80px;gap:14px;align-items:center;padding:7px 0;border-bottom:1px solid var(--line-soft);}
+.aging-row:last-child{border-bottom:none;}
+.ar-label{font-size:12.5px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.ar-sub{display:block;font-size:10.5px;font-weight:400;color:var(--ink-faint);margin-top:1px;}
+.ar-track{height:20px;background:var(--paper);border-radius:4px;position:relative;overflow:hidden;border:1px solid var(--line-soft);}
+.ar-fill{height:100%;border-radius:3px;}
+.ar-fill.fresh{background:var(--green);}.ar-fill.watch{background:var(--gold);}
+.ar-fill.stale{background:var(--red);}
+.ar-fill.stale::after{content:'';position:absolute;inset:0;background:repeating-linear-gradient(45deg,rgba(255,255,255,.18) 0 6px,transparent 6px 12px);}
+.ar-count{font-size:11px;text-align:right;color:var(--ink-soft);font-family:'SF Mono',monospace;}
+.ar-count b{color:var(--ink);}
+
+/* 2-COL */
+.grid-2{display:grid;grid-template-columns:1.4fr 1fr;gap:1.5rem;margin-bottom:1.5rem;}
+@media(max-width:860px){.grid-2{grid-template-columns:1fr;}}
+.panel-card{background:var(--paper2);border:1px solid var(--line);border-radius:var(--rl);overflow:hidden;}
+.panel-hdr{padding:.8rem 1.1rem;border-bottom:1px solid var(--line);background:rgba(28,26,23,.02);}
+.panel-hdr h3{font-size:13px;font-weight:600;}
+.panel-body{padding:.5rem 1.1rem .9rem;}
+.proj-line{display:grid;grid-template-columns:1fr auto auto auto;gap:14px;align-items:center;padding:.6rem 0;border-bottom:1px solid var(--line-soft);font-size:12.5px;}
+.proj-line:last-child{border-bottom:none;}
+.proj-line .pname{font-weight:600;display:flex;align-items:center;gap:6px;}
+.pname .dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;}
+.pstat{font-size:11px;color:var(--ink-faint);text-align:right;font-family:'SF Mono',monospace;}
+.pstat b{color:var(--ink);font-weight:600;}
+.pval{font-size:12px;font-weight:600;text-align:right;font-family:'SF Mono',monospace;min-width:80px;}
+.pbadge{font-size:10px;font-weight:700;padding:2px 7px;border-radius:99px;text-align:center;min-width:56px;}
+.pbadge.ok{background:#E7F2E6;color:var(--green);}.pbadge.risk{background:#FBEAE7;color:var(--red);}
+.pm-line{display:flex;align-items:center;gap:10px;padding:.65rem 0;border-bottom:1px solid var(--line-soft);}
+.pm-line:last-child{border-bottom:none;}
+.pm-avatar{width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#fff;flex-shrink:0;}
+.pm-info{flex:1;}
+.pm-name{font-size:12.5px;font-weight:600;}
+.pm-meta{font-size:10.5px;color:var(--ink-faint);margin-top:2px;font-family:'SF Mono',monospace;}
+.pm-load{font-size:18px;font-weight:700;font-family:'SF Mono',monospace;}
+.pm-load.heavy{color:var(--red);}.pm-load.light{color:var(--green);}
+
+/* TABLE */
+.table-wrap{background:var(--paper2);border:1px solid var(--line);border-radius:var(--rl);overflow:hidden;margin-bottom:2rem;}
+.tbl-controls{display:flex;gap:8px;padding:.8rem 1.1rem;border-bottom:1px solid var(--line);flex-wrap:wrap;align-items:center;background:rgba(28,26,23,.02);}
+.tbl-search{flex:1;min-width:160px;font-size:12.5px;padding:6px 10px;border-radius:var(--r);border:1px solid var(--line);background:var(--paper);outline:none;font-family:inherit;}
+.tbl-search:focus{border-color:var(--red);}
+.tbl-sel{font-size:12px;padding:6px 9px;border-radius:var(--r);border:1px solid var(--line);background:var(--paper);outline:none;font-family:inherit;cursor:pointer;}
+.tbl-sel:focus{border-color:var(--red);}
+table.bt{width:100%;border-collapse:collapse;font-size:12.5px;}
+table.bt thead th{font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-faint);text-align:left;padding:9px 12px;border-bottom:1.5px solid var(--ink);background:rgba(28,26,23,.02);position:sticky;top:0;cursor:pointer;user-select:none;font-family:'SF Mono',monospace;}
+table.bt thead th:hover{color:var(--red);}
+table.bt tbody td{padding:9px 12px;border-bottom:1px solid var(--line-soft);vertical-align:middle;}
+table.bt tbody tr:hover{background:rgba(192,41,26,.03);}
+.cell-amt{font-family:'SF Mono',monospace;font-weight:600;text-align:right;}
+.cell-age{text-align:center;}
+.age-pill{display:inline-block;padding:2px 8px;border-radius:99px;font-size:10.5px;font-weight:700;}
+.age-pill.fresh{background:#E7F2E6;color:var(--green);}
+.age-pill.watch{background:#FBF1DC;color:#8A6515;}
+.age-pill.stale{background:#FBEAE7;color:var(--red);}
+.age-pill.unknown{background:rgba(28,26,23,.07);color:var(--ink-faint);}
+.steps{display:flex;gap:3px;}
+.step-dot{width:8px;height:8px;border-radius:50%;background:var(--line);}
+.step-dot.done{background:var(--green);}
+.cell-status{font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:99px;text-transform:uppercase;letter-spacing:.03em;}
+.cell-status.pending{background:#FBF1DC;color:#8A6515;}
+.cell-status.approved{background:#E3EDF7;color:var(--blue);}
+.empty-row td{text-align:center;padding:2.5rem;color:var(--ink-faint);font-size:13px;}
+.footnote{max-width:1300px;margin:0 auto;padding:0 2rem 3rem;font-size:11px;color:var(--ink-faint);font-family:'SF Mono',monospace;line-height:1.7;}
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--board);color:var(--paper2);padding:9px 18px;border-radius:var(--r);font-size:13px;opacity:0;transition:opacity .25s;pointer-events:none;z-index:9999;white-space:nowrap;}
+.toast.show{opacity:1;}
+@media print{.dash-toolbar,.tbl-controls{display:none;}}
+</style>
+</head>
+<body>
+
+<div class="masthead">
+  <div class="masthead-inner">
+    <div class="masthead-id">
+      <div class="stamp-mark">RD</div>
+      <div class="masthead-titles">
+        <h1>Change Order Backlog</h1>
+        <div class="doc-sub">Executive Dashboard — Red Door Construction LLC</div>
+      </div>
+    </div>
+    <div class="masthead-right">
+      <div class="mm-block"><div class="mm-label">Last refreshed</div><div class="mm-val" id="meta-refreshed">—</div></div>
+      <div class="mm-block"><div class="mm-label">Total records</div><div class="mm-val" id="meta-total">—</div></div>
+      <div>
+        <div class="sync-row">
+          <div class="sync-dot" id="syncDot"></div>
+          <span class="sync-label" id="syncLabel">Connecting…</span>
+        </div>
+        <button class="refresh-btn" onclick="loadAndRender()" style="margin-top:8px"><i class="ti ti-refresh"></i> Refresh</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- LOADING -->
+<div id="loadingState">
+  <div class="loading-spinner"></div>
+  <p style="font-size:14px;color:var(--ink-soft)">Loading live data…</p>
+</div>
+
+<!-- DASHBOARD -->
+<div class="dash" id="dash" style="display:none">
+  <div class="dash-toolbar">
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <button class="t-btn" onclick="window.print()"><i class="ti ti-printer"></i> Print / PDF</button>
+    </div>
+    <span style="font-size:11px;color:var(--ink-faint);font-family:'SF Mono',monospace" id="lastRefreshed"></span>
+  </div>
+
+  <div class="kpi-row">
+    <div class="kpi alert"><div class="kpi-label">Total Backlog</div><div class="kpi-val red" id="kpi-total">0</div><div class="kpi-sub">pending change orders</div></div>
+    <div class="kpi"><div class="kpi-label">Backlog Value</div><div class="kpi-val" id="kpi-value">$0</div><div class="kpi-sub">unbilled / unprocessed</div></div>
+    <div class="kpi"><div class="kpi-label">Ready to Move</div><div class="kpi-val green" id="kpi-ready">0</div><div class="kpi-sub">all 3 steps complete</div></div>
+    <div class="kpi"><div class="kpi-label">Stale (14+ days)</div><div class="kpi-val gold" id="kpi-stale">0</div><div class="kpi-sub">aging risk</div></div>
+    <div class="kpi"><div class="kpi-label">In Accounting</div><div class="kpi-val" id="kpi-accounting">0</div><div class="kpi-sub">this period</div></div>
+  </div>
+
+  <div class="section-hdr"><h2><i class="ti ti-stopwatch" style="font-size:14px"></i> Backlog Aging by Project</h2><span class="sh-note">days since logged</span></div>
+  <div class="aging-board">
+    <div class="aging-legend">
+      <div class="al-item"><span class="al-swatch" style="background:var(--green)"></span> 0–6 days</div>
+      <div class="al-item"><span class="al-swatch" style="background:var(--gold)"></span> 7–13 days</div>
+      <div class="al-item"><span class="al-swatch" style="background:var(--red)"></span> 14+ days — needs attention</div>
+    </div>
+    <div id="agingRows"></div>
+  </div>
+
+  <div class="grid-2">
+    <div class="panel-card">
+      <div class="panel-hdr"><h3><i class="ti ti-building" style="font-size:13px"></i> Backlog by Project</h3></div>
+      <div class="panel-body" id="projectPanel"></div>
+    </div>
+    <div class="panel-card">
+      <div class="panel-hdr"><h3><i class="ti ti-users" style="font-size:13px"></i> Backlog by PM</h3></div>
+      <div class="panel-body" id="pmPanel"></div>
+    </div>
+  </div>
+
+  <div class="section-hdr"><h2><i class="ti ti-list-details" style="font-size:14px"></i> Full Backlog Detail</h2></div>
+  <div class="table-wrap">
+    <div class="tbl-controls">
+      <input class="tbl-search" id="tableSearch" placeholder="Search CE #, vendor, project, PM…" oninput="renderTable()"/>
+      <select class="tbl-sel" id="tableFilterPM" onchange="renderTable()"><option value="">All PMs</option></select>
+      <select class="tbl-sel" id="tableFilterStatus" onchange="renderTable()"><option value="">All statuses</option><option value="pending">Pending</option><option value="approved">In accounting</option></select>
+      <select class="tbl-sel" id="tableFilterAge" onchange="renderTable()"><option value="">All ages</option><option value="fresh">Fresh (0–6d)</option><option value="watch">Watch (7–13d)</option><option value="stale">Stale (14d+)</option></select>
+    </div>
+    <div style="overflow-x:auto">
+      <table class="bt">
+        <thead>
+          <tr>
+            <th onclick="sortTable('ceNumber')">CE #</th>
+            <th onclick="sortTable('project')">Project</th>
+            <th onclick="sortTable('vendor')">Vendor</th>
+            <th onclick="sortTable('pm')">PM</th>
+            <th onclick="sortTable('amount')" style="text-align:right">Amount</th>
+            <th onclick="sortTable('age')" style="text-align:center">Age</th>
+            <th>Steps</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody id="tableBody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div class="footnote" id="footnote" style="display:none">
+  Live data pulled from JSONBin cloud storage — shared across all PM devices and updated in real-time. Aging calculated from the date each CO was logged. Steps: ● Stamped ● Procore ● Docusign.
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const BIN_ID='6a466f40da38895dfe22b546';
+const API_KEY='$2a$10$5BGDE7Pkf1RJ5BPcTBSN3.hKhx19Wj7ImxFrfwoH/j33/KRB8eEHK';
+const BIN_URL=`https://api.jsonbin.io/v3/b/${BIN_ID}`;
+const HEADERS={'X-Master-Key':API_KEY,'X-Bin-Meta':'false'};
+
+const PM_COLORS={"Ashley Maha'a":'#7F77DD','Diedra Chatman':'#1D9E75','Valentina Salcedo':'#D85A30','Jannette Cruz':'#D4537E'};
+let records=[];
+let sortKey='age',sortDir='desc';
+
+function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),3000);}
+
+function setSync(state,label){
+  document.getElementById('syncDot').className='sync-dot '+state;
+  document.getElementById('syncLabel').textContent=label;
+}
+
+async function loadAndRender(){
+  setSync('syncing','Refreshing…');
+  try{
+    const r=await fetch(BIN_URL+'/latest',{headers:HEADERS});
+    if(!r.ok)throw new Error('HTTP '+r.status);
+    const data=await r.json();
+    const tracker=(data&&data.tracker)||[];
+    // Compute real age from loggedAt ISO string
+    records=tracker.map(e=>{
+      let age=null;
+      if(e.loggedAt){const d=new Date(e.loggedAt);if(!isNaN(d))age=Math.max(0,Math.floor((Date.now()-d.getTime())/(86400000)));}
+      return{...e,age};
+    });
+    const now=new Date();
+    document.getElementById('meta-refreshed').textContent=now.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'});
+    document.getElementById('meta-total').textContent=records.length;
+    document.getElementById('lastRefreshed').textContent='As of '+now.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})+' '+now.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'});
+    setSync('synced','Live');
+    document.getElementById('loadingState').style.display='none';
+    document.getElementById('dash').style.display='block';
+    document.getElementById('footnote').style.display='block';
+    renderAll();
+  }catch(e){
+    setSync('error','Error — check connection');
+    document.getElementById('loadingState').innerHTML=`<div style="text-align:center;padding:2rem"><i class="ti ti-alert-triangle" style="font-size:36px;color:#C0291A;display:block;margin-bottom:1rem"></i><p style="font-size:14px;color:#4A4640;margin-bottom:.5rem">Could not load live data.</p><p style="font-size:12px;color:#8A8478;margin-bottom:1.25rem">Error: ${e.message||'Network error'}</p><button onclick="loadAndRender()" style="padding:8px 16px;background:#C0291A;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:13px">Retry</button></div>`;
+    toast('Failed to load — check connection');
+  }
+}
+
+function fmtUSD(n){return'$'+n.toLocaleString('en-US',{minimumFractionDigits:0,maximumFractionDigits:0});}
+function parseAmt(s){if(!s)return 0;const n=parseFloat((s+'').replace(/[^0-9.]/g,''));return isNaN(n)?0:n;}
+function ageClass(age){if(age===null||age===undefined)return'unknown';return age>=14?'stale':age>=7?'watch':'fresh';}
+function ageLabel(age){return(age===null||age===undefined)?'—':age+'d';}
+
+function renderAll(){renderKPIs();renderAging();renderProjectPanel();renderPMPanel();populatePMFilter();renderTable();}
+
+function renderKPIs(){
+  const pending=records.filter(r=>r.status==='pending');
+  const approved=records.filter(r=>r.status==='approved');
+  const ready=pending.filter(r=>r.stepStamped&&r.stepProcore&&r.stepDocusign);
+  const stale=pending.filter(r=>r.age!==null&&r.age>=14);
+  document.getElementById('kpi-total').textContent=pending.length;
+  document.getElementById('kpi-value').textContent=fmtUSD(pending.reduce((s,r)=>s+parseAmt(r.amount),0));
+  document.getElementById('kpi-ready').textContent=ready.length;
+  document.getElementById('kpi-stale').textContent=stale.length;
+  document.getElementById('kpi-accounting').textContent=approved.length;
+}
+
+function renderAging(){
+  const projects=[...new Set(records.map(r=>r.project||'Unassigned'))].sort();
+  const el=document.getElementById('agingRows');
+  const pending=records.filter(r=>r.status==='pending');
+  const knownAges=pending.map(r=>r.age).filter(a=>a!==null);
+  const maxAge=knownAges.length?Math.max(...knownAges,1):1;
+  el.innerHTML=projects.map(proj=>{
+    const recs=pending.filter(r=>(r.project||'Unassigned')===proj);
+    if(!recs.length)return'';
+    const known=recs.map(r=>r.age).filter(a=>a!==null);
+    const oldest=known.length?Math.max(...known):null;
+    const cls=ageClass(oldest);
+    const w=oldest!==null?Math.max(8,Math.round((oldest/maxAge)*100)):4;
+    return`<div class="aging-row">
+      <div class="ar-label">${proj}<span class="ar-sub">${recs.length} pending · ${fmtUSD(recs.reduce((s,r)=>s+parseAmt(r.amount),0))}</span></div>
+      <div class="ar-track"><div class="ar-fill ${cls}" style="width:${w}%"></div></div>
+      <div class="ar-count">oldest <b>${oldest!==null?oldest+'d':'—'}</b></div>
+    </div>`;
+  }).join('');
+  if(!el.innerHTML)el.innerHTML='<div style="padding:1rem;color:var(--ink-faint);font-size:13px;text-align:center">No pending COs</div>';
+}
+
+function renderProjectPanel(){
+  const projects=[...new Set(records.map(r=>r.project||'Unassigned'))].sort();
+  const el=document.getElementById('projectPanel');
+  el.innerHTML=projects.map(proj=>{
+    const recs=records.filter(r=>(r.project||'Unassigned')===proj);
+    const pending=recs.filter(r=>r.status==='pending');
+    const stale=pending.filter(r=>r.age!==null&&r.age>=14);
+    const risk=stale.length>0;
+    return`<div class="proj-line">
+      <div class="pname"><span class="dot" style="background:${risk?'var(--red)':'var(--green)'}"></span>${proj}</div>
+      <div class="pstat"><b>${pending.length}</b> pending</div>
+      <div class="pval">${fmtUSD(pending.reduce((s,r)=>s+parseAmt(r.amount),0))}</div>
+      <div class="pbadge ${risk?'risk':'ok'}">${risk?stale.length+' stale':'on track'}</div>
+    </div>`;
+  }).join('')||'<div style="padding:1rem 0;color:var(--ink-faint);font-size:12.5px">No data</div>';
+}
+
+function renderPMPanel(){
+  const pms=[...new Set(records.map(r=>r.pm).filter(Boolean))].sort();
+  const el=document.getElementById('pmPanel');
+  el.innerHTML=pms.map(pm=>{
+    const recs=records.filter(r=>r.pm===pm&&r.status==='pending');
+    const color=PM_COLORS[pm]||'#888';
+    const initials=pm.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
+    const stale=recs.filter(r=>r.age!==null&&r.age>=14).length;
+    return`<div class="pm-line">
+      <div class="pm-avatar" style="background:${color}">${initials}</div>
+      <div class="pm-info"><div class="pm-name">${pm}</div><div class="pm-meta">${stale>0?stale+' stale · ':''}${[...new Set(recs.map(r=>r.project))].length} project(s)</div></div>
+      <div class="pm-load ${recs.length>=6?'heavy':recs.length<=2?'light':''}">${recs.length}</div>
+    </div>`;
+  }).join('')||'<div style="padding:1rem 0;color:var(--ink-faint);font-size:12.5px">No data</div>';
+}
+
+function populatePMFilter(){
+  const pms=[...new Set(records.map(r=>r.pm).filter(Boolean))].sort();
+  const sel=document.getElementById('tableFilterPM');
+  const cur=sel.value;
+  sel.innerHTML='<option value="">All PMs</option>'+pms.map(p=>`<option value="${p}"${p===cur?' selected':''}>${p}</option>`).join('');
+}
+
+function sortTable(key){sortKey===key?sortDir=sortDir==='asc'?'desc':'asc':(sortKey=key,sortDir='desc');renderTable();}
+
+function renderTable(){
+  const search=(document.getElementById('tableSearch').value||'').toLowerCase();
+  const filterPM=document.getElementById('tableFilterPM').value;
+  const filterStatus=document.getElementById('tableFilterStatus').value;
+  const filterAge=document.getElementById('tableFilterAge').value;
+  let filtered=records.filter(r=>{
+    if(filterPM&&r.pm!==filterPM)return false;
+    if(filterStatus&&r.status!==filterStatus)return false;
+    if(filterAge&&ageClass(r.age)!==filterAge)return false;
+    if(search&&![r.ceNumber,r.project,r.vendor,r.pm,r.description].filter(Boolean).join(' ').toLowerCase().includes(search))return false;
+    return true;
+  });
+  filtered.sort((a,b)=>{
+    let av=a[sortKey],bv=b[sortKey];
+    if(sortKey==='age'){if(av===null||av===undefined)return 1;if(bv===null||bv===undefined)return -1;}
+    if(typeof av==='string')av=av.toLowerCase();if(typeof bv==='string')bv=bv.toLowerCase();
+    if(av<bv)return sortDir==='asc'?-1:1;if(av>bv)return sortDir==='asc'?1:-1;return 0;
+  });
+  const tbody=document.getElementById('tableBody');
+  if(!filtered.length){tbody.innerHTML='<tr class="empty-row"><td colspan="8">No matching records</td></tr>';return;}
+  tbody.innerHTML=filtered.map(r=>`<tr>
+    <td style="font-family:'SF Mono',monospace">${r.ceNumber||'—'}</td>
+    <td>${r.project||'—'}</td>
+    <td>${r.vendor||'—'}</td>
+    <td><span style="display:inline-flex;align-items:center;gap:5px"><span style="width:8px;height:8px;border-radius:50%;background:${PM_COLORS[r.pm]||'#888'};flex-shrink:0;display:inline-block"></span>${r.pm||'—'}</span></td>
+    <td class="cell-amt">${r.amount?'$'+parseAmt(r.amount).toLocaleString('en-US'):'-'}</td>
+    <td class="cell-age"><span class="age-pill ${ageClass(r.age)}">${ageLabel(r.age)}</span></td>
+    <td><div class="steps"><span class="step-dot ${r.stepStamped?'done':''}" title="Stamped"></span><span class="step-dot ${r.stepProcore?'done':''}" title="Procore"></span><span class="step-dot ${r.stepDocusign?'done':''}" title="Docusign"></span></div></td>
+    <td><span class="cell-status ${r.status}">${r.status==='approved'?'Accounting':'Pending'}</span></td>
+  </tr>`).join('');
+}
+
+loadAndRender();
+</script>
+</body>
+</html>
