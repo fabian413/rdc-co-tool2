@@ -319,6 +319,7 @@ header{background:var(--charcoal);padding:0 1.5rem;display:flex;align-items:cent
         <p style="font-size:11px;margin-top:4px">PDF files only</p>
       </div>
       <input type="file" id="pdfUpload" accept="application/pdf" style="display:none" onchange="handleUpload(event)"/>
+      <button class="drbtn" id="autoFillBtn" style="display:none;margin-top:10px" onclick="autoFillFromPdf()"><i class="ti ti-sparkles"></i> <span id="autoFillLabel">Auto-fill vendor &amp; amount from PDF</span></button>
     </div>
     <div class="stamps-row">
       <div class="stamp-card">
@@ -459,6 +460,61 @@ const BIN_ID='6a4eacaaf5f4af5e2973e5fb';
 const API_KEY='$2a$10$5qGVMz.soICiyFD5g8SbIe7U0sHtF8nlTVeIxmILafUo3q2cjmoQK';
 const BIN_URL=`https://api.jsonbin.io/v3/b/${BIN_ID}`;
 const HEADERS={'Content-Type':'application/json','X-Master-Key':API_KEY,'X-Bin-Meta':'false'};
+
+// ── CLAUDE API (PDF auto-fill, via Cloudflare Worker proxy — key lives server-side) ──
+const CLAUDE_PROXY_URL='https://rdc-claude-proxy.fabian-caf.workers.dev';
+
+async function extractPdfText(file){
+  const buf=await file.arrayBuffer();
+  const pdf=await pdfjsLib.getDocument({data:buf}).promise;
+  let text='';
+  for(let i=1;i<=pdf.numPages;i++){
+    const page=await pdf.getPage(i);
+    const content=await page.getTextContent();
+    text+=content.items.map(it=>it.str).join(' ')+'\n';
+  }
+  return text.trim();
+}
+
+async function autoFillFromPdf(){
+  if(!uploadedFile){toast('Upload a PDF first');return;}
+  const btn=document.getElementById('autoFillBtn'),label=document.getElementById('autoFillLabel');
+  btn.disabled=true;label.textContent='Reading PDF…';
+  try{
+    const text=await extractPdfText(uploadedFile);
+    if(!text){toast('Could not read text from this PDF');return;}
+    label.textContent='Extracting vendor & amount…';
+    const res=await fetch(CLAUDE_PROXY_URL,{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({
+        model:'claude-haiku-4-5',
+        max_tokens:300,
+        messages:[{role:'user',content:`Extract the vendor/subcontractor name and the total change order dollar amount from this construction change order document text. If a field cannot be determined, use null.\n\n${text.slice(0,12000)}`}],
+        output_config:{format:{type:'json_schema',schema:{
+          type:'object',
+          properties:{
+            vendor:{type:['string','null'],description:'Vendor or subcontractor company name'},
+            amount:{type:['string','null'],description:'Total change order dollar amount, formatted like $4,250.00'}
+          },
+          required:['vendor','amount'],
+          additionalProperties:false
+        }}}
+      })
+    });
+    if(!res.ok){const errBody=await res.text();throw new Error('HTTP '+res.status+': '+errBody);}
+    const data=await res.json();
+    const textBlock=(data.content||[]).find(b=>b.type==='text');
+    if(!textBlock)throw new Error('No response content');
+    const parsed=JSON.parse(textBlock.text);
+    let filled=[];
+    if(parsed.vendor){document.getElementById('vendorName').value=parsed.vendor;filled.push('vendor');}
+    if(parsed.amount){document.getElementById('coAmount').value=parsed.amount;filled.push('amount');}
+    updatePreview();
+    toast(filled.length?'Auto-filled: '+filled.join(', '):'Could not find vendor or amount in this PDF');
+  }catch(err){console.error(err);toast('Auto-fill failed — check console');}
+  finally{btn.disabled=false;label.textContent='Auto-fill vendor & amount from PDF';}
+}
 let syncTimeout=null;
 let cloudData={tracker:[],projects:{}};
 
@@ -657,7 +713,7 @@ initSig('sigCanvas','pm');initSig('acctSigCanvas','acct');
 function setScope(v){scopeVal=v;document.getElementById('scopeIn').className='tbtn'+(v==='in'?' a-in':'');document.getElementById('scopeOut').className='tbtn'+(v==='out'?' a-out':'');updatePreview();}
 function setDoc(v){docType=v;['CCO','SC','PO','None'].forEach(d=>document.getElementById('doc'+d).className='dbtn'+(d===v?' active':''));updatePreview();}
 function setAcctApproval(v){acctApproval=v;document.getElementById('acctApproved').className='tbtn'+(v==='approved'?' a-appr':'');document.getElementById('acctPending').className='tbtn'+(v==='pending'?' a-pend':'');document.getElementById('acctHold').className='tbtn'+(v==='hold'?' a-hold':'');updatePreview();}
-function handleUpload(e){const f=e.target.files[0];if(!f)return;uploadedFile=f;document.getElementById('uploadLabel').textContent=f.name;document.getElementById('uploadZone').style.borderColor='var(--red)';}
+function handleUpload(e){const f=e.target.files[0];if(!f)return;uploadedFile=f;document.getElementById('uploadLabel').textContent=f.name;document.getElementById('uploadZone').style.borderColor='var(--red)';document.getElementById('autoFillBtn').style.display='flex';}
 
 ['vendorName','ceNumber','costCode','coAmount','coDescription','approvalDate','checkNumber','checkDate','checkAmount','acctNotes','acctName','acctDate'].forEach(id=>{const el=document.getElementById(id);if(el)el.addEventListener('input',updatePreview);});
 document.getElementById('projectName').addEventListener('change',updatePreview);
@@ -729,7 +785,7 @@ function clearAll(){
   document.getElementById('scopeIn').className='tbtn';document.getElementById('scopeOut').className='tbtn';
   ['acctApproved','acctPending','acctHold'].forEach(id=>document.getElementById(id).className='tbtn');
   clearSig('sigCanvas','pm');clearSig('acctSigCanvas','acct');
-  uploadedFile=null;document.getElementById('uploadLabel').textContent='Click to upload a change order PDF';document.getElementById('uploadZone').style.borderColor='';
+  uploadedFile=null;document.getElementById('uploadLabel').textContent='Click to upload a change order PDF';document.getElementById('uploadZone').style.borderColor='';document.getElementById('autoFillBtn').style.display='none';
   document.getElementById('draftStatus').textContent='';updatePreview();toast('Form cleared');
 }
 
@@ -924,7 +980,7 @@ function prefillStamp(id){
     if(e.description)document.getElementById('coDescription').value=e.description;
     if(e.scope)setScope(e.scope);if(e.docType)setDoc(e.docType);
     document.getElementById('approvalDate').valueAsDate=new Date();
-    if(e.pdfData&&e.pdfName){try{const b=atob(e.pdfData),ab=new ArrayBuffer(b.length),ia=new Uint8Array(ab);for(let i=0;i<b.length;i++)ia[i]=b.charCodeAt(i);uploadedFile=new File([ab],e.pdfName,{type:'application/pdf'});document.getElementById('uploadLabel').textContent=e.pdfName+' (from tracker)';document.getElementById('uploadZone').style.borderColor='var(--green)';}catch(ex){}}
+    if(e.pdfData&&e.pdfName){try{const b=atob(e.pdfData),ab=new ArrayBuffer(b.length),ia=new Uint8Array(ab);for(let i=0;i<b.length;i++)ia[i]=b.charCodeAt(i);uploadedFile=new File([ab],e.pdfName,{type:'application/pdf'});document.getElementById('uploadLabel').textContent=e.pdfName+' (from tracker)';document.getElementById('uploadZone').style.borderColor='var(--green)';document.getElementById('autoFillBtn').style.display='flex';}catch(ex){}}
     updatePreview();toast(e.pdfName?'Pre-filled with attached PDF — sign and download':'Pre-filled — attach PDF, sign, and download');
   },100);
 }
