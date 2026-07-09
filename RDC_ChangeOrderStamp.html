@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-<title>Red Door Construction — Change Order Tool</title>
+<title>Red Door Construction — Invoicing Tool</title>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.9.0/dist/tabler-icons.min.css"/>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
@@ -228,7 +228,7 @@ header{background:var(--charcoal);padding:0 1.5rem;display:flex;align-items:cent
 <div id="loginScreen">
   <div class="login-logo">R</div>
   <div class="login-title">Red Door Construction</div>
-  <div class="login-sub">Change Order Tool — Select your name to continue</div>
+  <div class="login-sub">Invoicing Tool — Select your name to continue</div>
   <div class="pm-grid" id="pmGrid"></div>
 </div>
 
@@ -237,7 +237,7 @@ header{background:var(--charcoal);padding:0 1.5rem;display:flex;align-items:cent
     <div class="logo">
       <div class="logo-badge">R</div>
       <span class="logo-name">Red Door Construction</span>
-      <span class="logo-sub">Change Order Tool</span>
+      <span class="logo-sub">Invoicing Tool</span>
     </div>
     <div style="display:flex;align-items:center;gap:10px">
       <span style="font-size:11px;color:rgba(255,255,255,.35)" id="syncLabel"></span>
@@ -254,6 +254,7 @@ header{background:var(--charcoal);padding:0 1.5rem;display:flex;align-items:cent
     <button class="tab active" id="tab-stamp" onclick="switchTab('stamp')"><i class="ti ti-stamp"></i> Stamp CO</button>
     <button class="tab" id="tab-tracker" onclick="switchTab('tracker')"><i class="ti ti-folders"></i> CE Tracker <span class="nbadge" id="pendingBadge">0</span></button>
     <button class="tab" id="tab-invoices" onclick="switchTab('invoices')"><i class="ti ti-mail"></i> Pending Invoices <span class="nbadge" id="invoicesBadge">0</span></button>
+    <button class="tab" id="tab-payapp" onclick="switchTab('payapp')"><i class="ti ti-file-invoice"></i> Pay App <span class="nbadge" id="payAppBadge">0</span></button>
     <button class="tab" id="tab-projects" onclick="switchTab('projects')"><i class="ti ti-building"></i> Projects</button>
   </div>
 
@@ -393,19 +394,37 @@ header{background:var(--charcoal);padding:0 1.5rem;display:flex;align-items:cent
   <!-- PENDING INVOICES -->
   <div class="panel" id="panel-invoices">
     <h1 class="page-title">Pending Invoices</h1>
-    <p class="page-sub">AI-extracted from emails sent to invoices@reddoorconstruction.com. Review, correct, and approve before they route to the PM.</p>
+    <p class="page-sub">AI-extracted from emails sent to invoices@reddoorconstruction.com. Review, correct, view the PDF, and approve before they route to the PM.</p>
     <div class="summary-row">
       <div class="sum-card"><div class="sum-label">Needs review</div><div class="sum-val red" id="inv-sum-review">0</div></div>
       <div class="sum-card"><div class="sum-label">Approved</div><div class="sum-val green" id="inv-sum-approved">0</div></div>
       <div class="sum-card"><div class="sum-label">Total value (needs review)</div><div class="sum-val gold" id="inv-sum-total">$0</div></div>
     </div>
     <div class="tracker-toolbar">
-      <select class="tbar-select" id="invFilterStatus" onchange="renderInvoices()"><option value="needs_review">Needs review</option><option value="approved">Approved</option><option value="">All</option></select>
-      <select class="tbar-select" id="invFilterPM" onchange="renderInvoices()"><option value="">All PMs</option></select>
-      <input class="tbar-search" type="text" id="invSearch" placeholder="Search vendor, project, sender…" oninput="renderInvoices()"/>
-      <button class="tbar-btn" onclick="loadCloud().then(renderInvoices)"><i class="ti ti-refresh"></i> Refresh</button>
+      <select class="tbar-select" id="invFilterStatus" onchange="renderQueue('invoices')"><option value="needs_review">Needs review</option><option value="approved">Approved</option><option value="">All</option></select>
+      <select class="tbar-select" id="invFilterPM" onchange="renderQueue('invoices')"><option value="">All PMs</option></select>
+      <input class="tbar-search" type="text" id="invSearch" placeholder="Search vendor, project, sender…" oninput="renderQueue('invoices')"/>
+      <button class="tbar-btn" onclick="loadCloud().then(()=>renderQueue('invoices'))"><i class="ti ti-refresh"></i> Refresh</button>
     </div>
     <div id="invoicesBody"></div>
+  </div>
+
+  <!-- PAY APP -->
+  <div class="panel" id="panel-payapp">
+    <h1 class="page-title">Pay App</h1>
+    <p class="page-sub">Pay applications extracted from invoices@reddoorconstruction.com. Review, correct, view the PDF, and approve before they route to the PM.</p>
+    <div class="summary-row">
+      <div class="sum-card"><div class="sum-label">Needs review</div><div class="sum-val red" id="pay-sum-review">0</div></div>
+      <div class="sum-card"><div class="sum-label">Approved</div><div class="sum-val green" id="pay-sum-approved">0</div></div>
+      <div class="sum-card"><div class="sum-label">Total value (needs review)</div><div class="sum-val gold" id="pay-sum-total">$0</div></div>
+    </div>
+    <div class="tracker-toolbar">
+      <select class="tbar-select" id="payFilterStatus" onchange="renderQueue('payapp')"><option value="needs_review">Needs review</option><option value="approved">Approved</option><option value="">All</option></select>
+      <select class="tbar-select" id="payFilterPM" onchange="renderQueue('payapp')"><option value="">All PMs</option></select>
+      <input class="tbar-search" type="text" id="paySearch" placeholder="Search vendor, project, sender…" oninput="renderQueue('payapp')"/>
+      <button class="tbar-btn" onclick="loadCloud().then(()=>renderQueue('payapp'))"><i class="ti ti-refresh"></i> Refresh</button>
+    </div>
+    <div id="payAppBody"></div>
   </div>
 
   <!-- PROJECTS -->
@@ -606,11 +625,12 @@ function scheduleSave(){
 
 // ── PM CONFIG ─────────────────────────────────────────────────
 const PMS=[
-  {name:"Ashley Maha'a",   initials:'AM',color:'#7F77DD'},
-  {name:'Diedra Chatman',  initials:'DC',color:'#1D9E75'},
-  {name:'Valentina Salcedo',initials:'VS',color:'#D85A30'},
-  {name:'Jannette Cruz',   initials:'JC',color:'#D4537E'},
+  {name:"Ashley Maha'a",   initials:'AM',color:'#7F77DD',role:'pm'},
+  {name:'Diedra Chatman',  initials:'DC',color:'#1D9E75',role:'pm'},
+  {name:'Valentina Salcedo',initials:'VS',color:'#D85A30',role:'pm'},
+  {name:'Jannette Cruz',   initials:'JC',color:'#D4537E',role:'pm'},
 ];
+const ACCOUNTING_USER={name:'Accounting',initials:'AC',color:'#4A4640',role:'accounting'};
 const ACCT_EMAILS=['accounting@reddoorconstruction.com','paola@reddoorconstruction.com'];
 const DRAFT_PREFIX='rdc_draft_v3_';
 let currentPM=null;
@@ -682,7 +702,18 @@ function populateProjectSelects(){
     btn.innerHTML=`<div class="pm-avatar" style="background:${pm.color}">${pm.initials}</div><div class="pm-name-login">${pm.name}</div>`;
     btn.onclick=()=>loginAs(pm);grid.appendChild(btn);
   });
+  const acctBtn=document.createElement('button');acctBtn.className='pm-btn';
+  acctBtn.innerHTML=`<div class="pm-avatar" style="background:${ACCOUNTING_USER.color}">${ACCOUNTING_USER.initials}</div><div class="pm-name-login">${ACCOUNTING_USER.name}</div>`;
+  acctBtn.onclick=()=>loginAs(ACCOUNTING_USER);grid.appendChild(acctBtn);
 })();
+
+function applyRoleVisibility(role){
+  const pmTabs=['tab-stamp','tab-tracker','tab-projects'];
+  const acctTabs=['tab-invoices','tab-payapp'];
+  const isAcct=role==='accounting';
+  pmTabs.forEach(id=>{const el=document.getElementById(id);if(el)el.style.display=isAcct?'none':'flex';});
+  acctTabs.forEach(id=>{const el=document.getElementById(id);if(el)el.style.display=isAcct?'flex':'none';});
+}
 
 async function loginAs(pm){
   currentPM=pm;
@@ -691,6 +722,12 @@ async function loginAs(pm){
   document.getElementById('headerAvatar').style.background=pm.color;
   document.getElementById('headerAvatar').textContent=pm.initials;
   document.getElementById('headerName').textContent=pm.name;
+  applyRoleVisibility(pm.role);
+  if(pm.role==='accounting'){
+    await loadCloud();
+    switchTab('invoices');
+    return;
+  }
   document.getElementById('pmName').value=pm.name;
   document.getElementById('stampSub').textContent='Logged in as '+pm.name+'. Fill out details, sign, attach PDF, and download.';
   await loadCloud();
@@ -709,7 +746,8 @@ function switchTab(t){
   document.querySelectorAll('.tab,.panel').forEach(el=>el.classList.remove('active'));
   document.getElementById('tab-'+t).classList.add('active');document.getElementById('panel-'+t).classList.add('active');
   if(t==='tracker'){loadCloud().then(()=>renderTracker());}
-  if(t==='invoices'){loadCloud().then(()=>renderInvoices());}
+  if(t==='invoices'){loadCloud().then(()=>renderQueue('invoices'));}
+  if(t==='payapp'){loadCloud().then(()=>renderQueue('payapp'));}
   if(t==='projects'){loadCloud().then(()=>{renderProjectManager();populateProjectSelects();});}
 }
 
@@ -832,8 +870,11 @@ function updateTabBadges(){
   // Badge shows full team pending count
   const p=getTracker().filter(e=>e.status==='pending').length;
   const badge=document.getElementById('pendingBadge');badge.textContent=p;badge.style.background=p>0?'var(--red)':'var(--muted2)';
-  const iv=(cloudData.pendingInvoices||[]).filter(e=>e.status==='needs_review').length;
+  const allInv=cloudData.pendingInvoices||[];
+  const iv=allInv.filter(e=>e.status==='needs_review'&&e.docType!=='pay_app').length;
   const ivBadge=document.getElementById('invoicesBadge');if(ivBadge){ivBadge.textContent=iv;ivBadge.style.background=iv>0?'var(--red)':'var(--muted2)';}
+  const pa=allInv.filter(e=>e.status==='needs_review'&&e.docType==='pay_app').length;
+  const paBadge=document.getElementById('payAppBadge');if(paBadge){paBadge.textContent=pa;paBadge.style.background=pa>0?'var(--red)':'var(--muted2)';}
 }
 function allStepsDone(e){return e.stepStamped&&e.stepProcore&&e.stepDocusign;}
 function approveForAccounting(id){
@@ -888,7 +929,13 @@ function submitAddCO(){
   logCO(entry);closeAddCO();renderTracker();toast('CO added to tracker');
 }
 
-// ── PENDING INVOICES ────────────────────────────────────────────
+// ── PENDING INVOICES / PAY APP (shared review queue, filtered by docType) ──
+const QUEUE_CONFIG={
+  invoices:{prefix:'inv',bodyId:'invoicesBody',datalistId:'invProjList',
+    match:e=>e.docType!=='pay_app',emptyLabel:'No invoices here'},
+  payapp:{prefix:'pay',bodyId:'payAppBody',datalistId:'payProjList',
+    match:e=>e.docType==='pay_app',emptyLabel:'No pay apps here'},
+};
 function getAllProjectNames(){
   const all=Object.values(cloudData.projects||{}).flat();
   return[...new Set(all.map(p=>p.name))].sort();
@@ -907,28 +954,30 @@ function approveInvoice(id){
   inv.status='approved';
   inv.reviewedBy=currentPM?.name||'';
   inv.reviewedAt=new Date().toISOString();
-  scheduleSave();renderInvoices();
+  scheduleSave();renderQueue('invoices');renderQueue('payapp');
   toast('Approved — routed to '+inv.pm+"'s pending invoices");
 }
 function rejectInvoice(id){
-  if(!confirm('Reject and remove this invoice from the review queue? This cannot be undone.'))return;
+  if(!confirm('Reject and remove this document from the review queue? This cannot be undone.'))return;
   cloudData.pendingInvoices=(cloudData.pendingInvoices||[]).filter(e=>e.id!==id);
-  scheduleSave();renderInvoices();
-  toast('Invoice rejected and removed');
+  scheduleSave();renderQueue('invoices');renderQueue('payapp');
+  toast('Removed from queue');
 }
-function renderInvoices(){
-  const all=cloudData.pendingInvoices||[];
-  const filterStatus=document.getElementById('invFilterStatus').value;
-  const search=(document.getElementById('invSearch').value||'').toLowerCase();
+function renderQueue(kind){
+  const cfg=QUEUE_CONFIG[kind];
+  const p=cfg.prefix;
+  const all=(cloudData.pendingInvoices||[]).filter(cfg.match);
+  const filterStatus=document.getElementById(p+'FilterStatus').value;
+  const search=(document.getElementById(p+'Search').value||'').toLowerCase();
 
-  const pmSel=document.getElementById('invFilterPM');
+  const pmSel=document.getElementById(p+'FilterPM');
   const curPMFilter=pmSel.value;
-  pmSel.innerHTML='<option value="">All PMs</option>'+PMS.map(p=>`<option value="${p.name}"${p.name===curPMFilter?' selected':''}>${p.name}</option>`).join('');
+  pmSel.innerHTML='<option value="">All PMs</option>'+PMS.map(x=>`<option value="${x.name}"${x.name===curPMFilter?' selected':''}>${x.name}</option>`).join('');
   const filterPMVal=pmSel.value;
 
-  document.getElementById('inv-sum-review').textContent=all.filter(e=>e.status==='needs_review').length;
-  document.getElementById('inv-sum-approved').textContent=all.filter(e=>e.status==='approved').length;
-  document.getElementById('inv-sum-total').textContent=fmtUSD(all.filter(e=>e.status==='needs_review').reduce((s,e)=>s+parseAmt(e.amount),0));
+  document.getElementById(p+'-sum-review').textContent=all.filter(e=>e.status==='needs_review').length;
+  document.getElementById(p+'-sum-approved').textContent=all.filter(e=>e.status==='approved').length;
+  document.getElementById(p+'-sum-total').textContent=fmtUSD(all.filter(e=>e.status==='needs_review').reduce((s,e)=>s+parseAmt(e.amount),0));
 
   const filtered=all.filter(e=>{
     if(filterStatus&&e.status!==filterStatus)return false;
@@ -937,8 +986,8 @@ function renderInvoices(){
     return true;
   }).sort((a,b)=>new Date(b.receivedAt||0)-new Date(a.receivedAt||0));
 
-  const body=document.getElementById('invoicesBody');
-  if(!filtered.length){body.innerHTML='<div style="text-align:center;padding:3rem;color:var(--muted2);font-size:14px"><i class="ti ti-mail-opened" style="font-size:32px;display:block;margin-bottom:.75rem;opacity:.3"></i>No invoices here</div>';updateTabBadges();return;}
+  const body=document.getElementById(cfg.bodyId);
+  if(!filtered.length){body.innerHTML=`<div style="text-align:center;padding:3rem;color:var(--muted2);font-size:14px"><i class="ti ti-mail-opened" style="font-size:32px;display:block;margin-bottom:.75rem;opacity:.3"></i>${cfg.emptyLabel}</div>`;updateTabBadges();return;}
 
   const projOpts=getAllProjectNames();
   body.innerHTML=filtered.map(e=>{
@@ -951,20 +1000,21 @@ function renderInvoices(){
         <span>${e.filename||''}</span>
         <span class="doc-badge ${e.docType||'unknown'}">${docTypeLabel(e.docType)}</span>
         ${e.confidence?`<span>AI confidence: ${e.confidence}</span>`:''}
+        ${e.fileKey?`<a href="${CLAUDE_PROXY_URL}/file/${encodeURIComponent(e.fileKey)}" target="_blank" style="color:var(--red);font-weight:600"><i class="ti ti-file-search"></i> View PDF</a>`:'<span style="color:var(--muted2)">No file attached</span>'}
         ${isReviewed?`<span style="color:var(--green,#3B6D11);font-weight:600">Approved by ${e.reviewedBy||'—'}</span>`:''}
       </div>
       <div><span class="inv-lbl">Vendor</span><input type="text" value="${(e.vendor||'').replace(/"/g,'&quot;')}" ${isReviewed?'disabled':''} onchange="updateInvoiceField('${e.id}','vendor',this.value)"/></div>
-      <div><span class="inv-lbl">Project</span><input type="text" list="invProjList" value="${(e.project||'').replace(/"/g,'&quot;')}" ${isReviewed?'disabled':''} onchange="updateInvoiceField('${e.id}','project',this.value)"/></div>
+      <div><span class="inv-lbl">Project</span><input type="text" list="${cfg.datalistId}" value="${(e.project||'').replace(/"/g,'&quot;')}" ${isReviewed?'disabled':''} onchange="updateInvoiceField('${e.id}','project',this.value)"/></div>
       <div><span class="inv-lbl">Amount</span><input type="text" value="${(e.amount||'').replace(/"/g,'&quot;')}" ${isReviewed?'disabled':''} onchange="updateInvoiceField('${e.id}','amount',this.value)"/></div>
       <div><span class="inv-lbl">PM</span><select ${isReviewed?'disabled':''} onchange="updateInvoiceField('${e.id}','pm',this.value)">
         <option value="">— Select —</option>
-        ${PMS.map(p=>`<option value="${p.name}"${e.pm===p.name?' selected':''}>${p.name}</option>`).join('')}
+        ${PMS.map(x=>`<option value="${x.name}"${e.pm===x.name?' selected':''}>${x.name}</option>`).join('')}
       </select></div>
       <div class="inv-actions">
         ${isReviewed?'':`<button class="tbar-btn blue-btn" onclick="approveInvoice('${e.id}')"><i class="ti ti-check"></i> Approve</button><button class="icon-btn" onclick="rejectInvoice('${e.id}')" title="Reject"><i class="ti ti-x"></i></button>`}
       </div>
     </div>`;
-  }).join('')+`<datalist id="invProjList">${projOpts.map(p=>`<option value="${p}">`).join('')}</datalist>`;
+  }).join('')+`<datalist id="${cfg.datalistId}">${projOpts.map(x=>`<option value="${x}">`).join('')}</datalist>`;
   updateTabBadges();
 }
 

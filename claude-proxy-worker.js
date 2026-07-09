@@ -1,10 +1,13 @@
-// Cloudflare Worker — two jobs:
-//   1. POST /            — proxies PDF auto-fill requests from the browser to Claude
-//                          (used by the "Auto-fill vendor & amount from PDF" button)
+// Cloudflare Worker — three jobs:
+//   1. POST /               — proxies PDF auto-fill requests from the browser to Claude
+//                             (used by the "Auto-fill vendor & amount from PDF" button)
 //   2. POST /intake-invoice — receives emailed invoice/pay-app attachments from the
-//                          Power Automate flow watching invoices@reddoorconstruction.com,
-//                          extracts structured data via Claude, and appends a
-//                          "needs review" record to the shared JSONBin store.
+//                             Power Automate flow watching invoices@reddoorconstruction.com,
+//                             extracts structured data via Claude, uploads the original
+//                             file to R2, and appends a "needs review" record to the
+//                             shared JSONBin store.
+//   3. GET  /file/:key      — streams a stored attachment back so reviewers can view the
+//                             original PDF/image before approving.
 //
 // Secrets required (Cloudflare dashboard > Worker > Settings > Variables and Secrets):
 //   ANTHROPIC_API_KEY  — Anthropic API key
@@ -12,6 +15,9 @@
 //                        x-intake-secret header on every request to /intake-invoice
 //   JSONBIN_BIN_ID     — the CO tracker bin ID (same one the app already syncs to)
 //   JSONBIN_API_KEY    — the JSONBin X-Master-Key
+//
+// Binding required (Worker > Settings > Bindings > Add > R2 Bucket):
+//   INVOICE_FILES      — variable name, bound to an R2 bucket (e.g. "rdc-invoices")
 
 const ALLOWED_ORIGIN = 'https://fabian413.github.io';
 
@@ -21,6 +27,9 @@ export default {
 
     if (url.pathname === '/intake-invoice') {
       return handleIntake(request, env);
+    }
+    if (url.pathname.startsWith('/file/')) {
+      return handleFileServe(request, env, url);
     }
     return handleAutoFillProxy(request, env);
   },
@@ -63,6 +72,25 @@ async function handleAutoFillProxy(request, env) {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }
+}
+
+// ── /file/:key — serve a stored attachment for viewing ─────────────
+async function handleFileServe(request, env, url) {
+  if (request.method !== 'GET') {
+    return new Response('Method not allowed', { status: 405 });
+  }
+  const key = decodeURIComponent(url.pathname.replace('/file/', ''));
+  if (!key) {
+    return new Response('Missing file key', { status: 400 });
+  }
+  const object = await env.INVOICE_FILES.get(key);
+  if (!object) {
+    return new Response('File not found', { status: 404 });
+  }
+  const headers = new Headers();
+  object.writeHttpMetadata(headers);
+  headers.set('Cache-Control', 'private, max-age=3600');
+  return new Response(object.body, { headers });
 }
 
 // ── /intake-invoice — server-to-server, called by Power Automate ──────
@@ -151,12 +179,23 @@ async function handleIntake(request, env) {
     if (!textBlock) throw new Error('No text content in Claude response');
     const extracted = JSON.parse(textBlock.text);
 
+    const id = 'inv_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8);
+    const ext = mimeType === 'application/pdf' ? 'pdf' : (mimeType.split('/')[1] || 'bin');
+    const fileKey = id + '.' + ext;
+
+    // Decode base64 -> bytes and upload the original file to R2
+    const binary = atob(fileBase64);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+    await env.INVOICE_FILES.put(fileKey, bytes, { httpMetadata: { contentType: mimeType } });
+
     const record = {
-      id: 'inv_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8),
+      id,
       from: from || 'unknown',
       subject: subject || '',
       receivedAt: receivedAt || new Date().toISOString(),
       filename: filename || 'attachment',
+      fileKey,
       docType: extracted.docType,
       vendor: extracted.vendor,
       project: extracted.project,
