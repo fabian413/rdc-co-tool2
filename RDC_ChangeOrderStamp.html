@@ -210,6 +210,17 @@ header{background:var(--charcoal);padding:0 1.5rem;display:flex;align-items:cent
 .modal-title{font-size:16px;font-weight:600;margin-bottom:1rem;padding-right:2rem;}
 .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--charcoal);color:#F5F3EF;padding:9px 18px;border-radius:var(--r);font-size:13px;opacity:0;transition:opacity .25s;pointer-events:none;z-index:9999;white-space:nowrap;}
 .toast.show{opacity:1;}
+.inv-row{background:var(--card);border:.5px solid var(--border-mid);border-radius:var(--r);padding:12px 14px;margin-bottom:8px;display:grid;grid-template-columns:1fr 1fr 1fr 1fr auto;gap:10px;align-items:center;}
+@media(max-width:900px){.inv-row{grid-template-columns:1fr 1fr;}}
+.inv-row input,.inv-row select{width:100%;font-size:12.5px;padding:6px 8px;border-radius:6px;border:.5px solid var(--border-mid);background:var(--bg);color:var(--text);outline:none;font-family:inherit;}
+.inv-row input:focus,.inv-row select:focus{border-color:var(--red);}
+.inv-meta{font-size:11px;color:var(--muted2);grid-column:1/-1;display:flex;gap:14px;flex-wrap:wrap;padding-bottom:4px;border-bottom:.5px solid var(--border-mid);margin-bottom:4px;}
+.inv-lbl{font-size:10px;text-transform:uppercase;letter-spacing:.03em;color:var(--muted2);margin-bottom:3px;display:block;}
+.doc-badge{display:inline-block;padding:3px 9px;border-radius:20px;font-size:10.5px;font-weight:600;text-transform:uppercase;letter-spacing:.02em;}
+.doc-badge.invoice{background:#E7EEFB;color:#1E56C4;}
+.doc-badge.pay_app{background:#F3E8FB;color:#7C3AED;}
+.doc-badge.unknown{background:#EFECE5;color:#8A8478;}
+.inv-actions{display:flex;gap:6px;flex-wrap:wrap;}
 </style>
 </head>
 <body>
@@ -242,6 +253,7 @@ header{background:var(--charcoal);padding:0 1.5rem;display:flex;align-items:cent
   <div class="tabs">
     <button class="tab active" id="tab-stamp" onclick="switchTab('stamp')"><i class="ti ti-stamp"></i> Stamp CO</button>
     <button class="tab" id="tab-tracker" onclick="switchTab('tracker')"><i class="ti ti-folders"></i> CE Tracker <span class="nbadge" id="pendingBadge">0</span></button>
+    <button class="tab" id="tab-invoices" onclick="switchTab('invoices')"><i class="ti ti-mail"></i> Pending Invoices <span class="nbadge" id="invoicesBadge">0</span></button>
     <button class="tab" id="tab-projects" onclick="switchTab('projects')"><i class="ti ti-building"></i> Projects</button>
   </div>
 
@@ -376,6 +388,24 @@ header{background:var(--charcoal);padding:0 1.5rem;display:flex;align-items:cent
       <button class="tbar-btn" onclick="clearTracker()"><i class="ti ti-trash"></i> Clear all</button>
     </div>
     <div id="trackerBody"></div>
+  </div>
+
+  <!-- PENDING INVOICES -->
+  <div class="panel" id="panel-invoices">
+    <h1 class="page-title">Pending Invoices</h1>
+    <p class="page-sub">AI-extracted from emails sent to invoices@reddoorconstruction.com. Review, correct, and approve before they route to the PM.</p>
+    <div class="summary-row">
+      <div class="sum-card"><div class="sum-label">Needs review</div><div class="sum-val red" id="inv-sum-review">0</div></div>
+      <div class="sum-card"><div class="sum-label">Approved</div><div class="sum-val green" id="inv-sum-approved">0</div></div>
+      <div class="sum-card"><div class="sum-label">Total value (needs review)</div><div class="sum-val gold" id="inv-sum-total">$0</div></div>
+    </div>
+    <div class="tracker-toolbar">
+      <select class="tbar-select" id="invFilterStatus" onchange="renderInvoices()"><option value="needs_review">Needs review</option><option value="approved">Approved</option><option value="">All</option></select>
+      <select class="tbar-select" id="invFilterPM" onchange="renderInvoices()"><option value="">All PMs</option></select>
+      <input class="tbar-search" type="text" id="invSearch" placeholder="Search vendor, project, sender…" oninput="renderInvoices()"/>
+      <button class="tbar-btn" onclick="loadCloud().then(renderInvoices)"><i class="ti ti-refresh"></i> Refresh</button>
+    </div>
+    <div id="invoicesBody"></div>
   </div>
 
   <!-- PROJECTS -->
@@ -516,7 +546,7 @@ async function autoFillFromPdf(){
   finally{btn.disabled=false;label.textContent='Auto-fill vendor & amount from PDF';}
 }
 let syncTimeout=null;
-let cloudData={tracker:[],projects:{}};
+let cloudData={tracker:[],projects:{},pendingInvoices:[]};
 
 function setSyncStatus(state,label){
   const dot=document.getElementById('syncDot');
@@ -531,16 +561,17 @@ async function loadCloud(){
     const r=await fetch(BIN_URL+'/latest',{headers:HEADERS});
     if(r.status===404){
       // Bin exists but is empty — initialize it
-      cloudData={tracker:[],projects:{}};
+      cloudData={tracker:[],projects:{},pendingInvoices:[]};
       await saveCloud();
       setSyncStatus('synced','Synced');
       return true;
     }
     if(!r.ok)throw new Error('HTTP '+r.status);
     const data=await r.json();
-    cloudData=data||{tracker:[],projects:{}};
+    cloudData=data||{tracker:[],projects:{},pendingInvoices:[]};
     if(!cloudData.tracker)cloudData.tracker=[];
     if(!cloudData.projects)cloudData.projects={};
+    if(!cloudData.pendingInvoices)cloudData.pendingInvoices=[];
     setSyncStatus('synced','Synced');
     return true;
   }catch(e){
@@ -678,6 +709,7 @@ function switchTab(t){
   document.querySelectorAll('.tab,.panel').forEach(el=>el.classList.remove('active'));
   document.getElementById('tab-'+t).classList.add('active');document.getElementById('panel-'+t).classList.add('active');
   if(t==='tracker'){loadCloud().then(()=>renderTracker());}
+  if(t==='invoices'){loadCloud().then(()=>renderInvoices());}
   if(t==='projects'){loadCloud().then(()=>{renderProjectManager();populateProjectSelects();});}
 }
 
@@ -800,6 +832,8 @@ function updateTabBadges(){
   // Badge shows full team pending count
   const p=getTracker().filter(e=>e.status==='pending').length;
   const badge=document.getElementById('pendingBadge');badge.textContent=p;badge.style.background=p>0?'var(--red)':'var(--muted2)';
+  const iv=(cloudData.pendingInvoices||[]).filter(e=>e.status==='needs_review').length;
+  const ivBadge=document.getElementById('invoicesBadge');if(ivBadge){ivBadge.textContent=iv;ivBadge.style.background=iv>0?'var(--red)':'var(--muted2)';}
 }
 function allStepsDone(e){return e.stepStamped&&e.stepProcore&&e.stepDocusign;}
 function approveForAccounting(id){
@@ -852,6 +886,86 @@ function submitAddCO(){
   if(!proj||!vendor){toast('Project and vendor are required');return;}
   const entry={id:genId(),project:proj,vendor,ceNumber:document.getElementById('addco-ce').value.trim(),amount:document.getElementById('addco-amount').value.trim(),costCode:document.getElementById('addco-costcode').value.trim(),docType:document.getElementById('addco-doctype').value,scope:document.getElementById('addco-scope').value,pm:document.getElementById('addco-pm').value||currentPM?.name||'',description:document.getElementById('addco-desc').value.trim(),status:'pending',source:'manual',loggedAt:new Date().toISOString(),stepStamped:false,stepProcore:false,stepDocusign:false};
   logCO(entry);closeAddCO();renderTracker();toast('CO added to tracker');
+}
+
+// ── PENDING INVOICES ────────────────────────────────────────────
+function getAllProjectNames(){
+  const all=Object.values(cloudData.projects||{}).flat();
+  return[...new Set(all.map(p=>p.name))].sort();
+}
+function docTypeLabel(t){return t==='pay_app'?'Pay App':t==='invoice'?'Invoice':'Unknown';}
+function updateInvoiceField(id,field,val){
+  const inv=(cloudData.pendingInvoices||[]).find(e=>e.id===id);
+  if(!inv)return;
+  inv[field]=val;
+  scheduleSave();
+}
+function approveInvoice(id){
+  const inv=(cloudData.pendingInvoices||[]).find(e=>e.id===id);
+  if(!inv)return;
+  if(!inv.vendor||!inv.project||!inv.pm){toast('Vendor, project, and PM are required before approving');return;}
+  inv.status='approved';
+  inv.reviewedBy=currentPM?.name||'';
+  inv.reviewedAt=new Date().toISOString();
+  scheduleSave();renderInvoices();
+  toast('Approved — routed to '+inv.pm+"'s pending invoices");
+}
+function rejectInvoice(id){
+  if(!confirm('Reject and remove this invoice from the review queue? This cannot be undone.'))return;
+  cloudData.pendingInvoices=(cloudData.pendingInvoices||[]).filter(e=>e.id!==id);
+  scheduleSave();renderInvoices();
+  toast('Invoice rejected and removed');
+}
+function renderInvoices(){
+  const all=cloudData.pendingInvoices||[];
+  const filterStatus=document.getElementById('invFilterStatus').value;
+  const search=(document.getElementById('invSearch').value||'').toLowerCase();
+
+  const pmSel=document.getElementById('invFilterPM');
+  const curPMFilter=pmSel.value;
+  pmSel.innerHTML='<option value="">All PMs</option>'+PMS.map(p=>`<option value="${p.name}"${p.name===curPMFilter?' selected':''}>${p.name}</option>`).join('');
+  const filterPMVal=pmSel.value;
+
+  document.getElementById('inv-sum-review').textContent=all.filter(e=>e.status==='needs_review').length;
+  document.getElementById('inv-sum-approved').textContent=all.filter(e=>e.status==='approved').length;
+  document.getElementById('inv-sum-total').textContent=fmtUSD(all.filter(e=>e.status==='needs_review').reduce((s,e)=>s+parseAmt(e.amount),0));
+
+  const filtered=all.filter(e=>{
+    if(filterStatus&&e.status!==filterStatus)return false;
+    if(filterPMVal&&e.pm!==filterPMVal)return false;
+    if(search&&![e.vendor,e.project,e.from,e.subject].filter(Boolean).join(' ').toLowerCase().includes(search))return false;
+    return true;
+  }).sort((a,b)=>new Date(b.receivedAt||0)-new Date(a.receivedAt||0));
+
+  const body=document.getElementById('invoicesBody');
+  if(!filtered.length){body.innerHTML='<div style="text-align:center;padding:3rem;color:var(--muted2);font-size:14px"><i class="ti ti-mail-opened" style="font-size:32px;display:block;margin-bottom:.75rem;opacity:.3"></i>No invoices here</div>';updateTabBadges();return;}
+
+  const projOpts=getAllProjectNames();
+  body.innerHTML=filtered.map(e=>{
+    const isReviewed=e.status==='approved';
+    const dt=e.receivedAt?new Date(e.receivedAt).toLocaleString('en-US',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}):'—';
+    return`<div class="inv-row">
+      <div class="inv-meta">
+        <span><i class="ti ti-mail" style="font-size:11px"></i> ${e.from||'unknown sender'}</span>
+        <span>${dt}</span>
+        <span>${e.filename||''}</span>
+        <span class="doc-badge ${e.docType||'unknown'}">${docTypeLabel(e.docType)}</span>
+        ${e.confidence?`<span>AI confidence: ${e.confidence}</span>`:''}
+        ${isReviewed?`<span style="color:var(--green,#3B6D11);font-weight:600">Approved by ${e.reviewedBy||'—'}</span>`:''}
+      </div>
+      <div><span class="inv-lbl">Vendor</span><input type="text" value="${(e.vendor||'').replace(/"/g,'&quot;')}" ${isReviewed?'disabled':''} onchange="updateInvoiceField('${e.id}','vendor',this.value)"/></div>
+      <div><span class="inv-lbl">Project</span><input type="text" list="invProjList" value="${(e.project||'').replace(/"/g,'&quot;')}" ${isReviewed?'disabled':''} onchange="updateInvoiceField('${e.id}','project',this.value)"/></div>
+      <div><span class="inv-lbl">Amount</span><input type="text" value="${(e.amount||'').replace(/"/g,'&quot;')}" ${isReviewed?'disabled':''} onchange="updateInvoiceField('${e.id}','amount',this.value)"/></div>
+      <div><span class="inv-lbl">PM</span><select ${isReviewed?'disabled':''} onchange="updateInvoiceField('${e.id}','pm',this.value)">
+        <option value="">— Select —</option>
+        ${PMS.map(p=>`<option value="${p.name}"${e.pm===p.name?' selected':''}>${p.name}</option>`).join('')}
+      </select></div>
+      <div class="inv-actions">
+        ${isReviewed?'':`<button class="tbar-btn blue-btn" onclick="approveInvoice('${e.id}')"><i class="ti ti-check"></i> Approve</button><button class="icon-btn" onclick="rejectInvoice('${e.id}')" title="Reject"><i class="ti ti-x"></i></button>`}
+      </div>
+    </div>`;
+  }).join('')+`<datalist id="invProjList">${projOpts.map(p=>`<option value="${p}">`).join('')}</datalist>`;
+  updateTabBadges();
 }
 
 // ── RENDER TRACKER ────────────────────────────────────────────
