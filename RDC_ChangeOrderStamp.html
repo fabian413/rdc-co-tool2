@@ -259,7 +259,7 @@ header{background:var(--charcoal);padding:0 1.5rem;display:flex;align-items:cent
 
   <div class="tabs">
     <button class="tab active" id="tab-stamp" onclick="switchTab('stamp')"><i class="ti ti-stamp"></i> Stamp CO</button>
-    <button class="tab" id="tab-tracker" onclick="switchTab('tracker')"><i class="ti ti-folders"></i> CE Tracker <span class="nbadge" id="pendingBadge">0</span></button>
+    <button class="tab" id="tab-tracker" onclick="switchTab('tracker')"><i class="ti ti-folders"></i> Invoice Tracker <span class="nbadge" id="pendingBadge">0</span></button>
     <button class="tab" id="tab-invoices" onclick="switchTab('invoices')"><i class="ti ti-mail"></i> Pending Invoices <span class="nbadge" id="invoicesBadge">0</span></button>
     <button class="tab" id="tab-payapp" onclick="switchTab('payapp')"><i class="ti ti-file-invoice"></i> Pay App <span class="nbadge" id="payAppBadge">0</span></button>
     <button class="tab" id="tab-projects" onclick="switchTab('projects')"><i class="ti ti-building"></i> Projects</button>
@@ -380,13 +380,13 @@ header{background:var(--charcoal);padding:0 1.5rem;display:flex;align-items:cent
 
   <!-- TRACKER -->
   <div class="panel" id="panel-tracker">
-    <h1 class="page-title">CE Tracker</h1>
-    <p class="page-sub">All change orders grouped by project. Syncs live across all PM devices.</p>
+    <h1 class="page-title">Invoice Tracker</h1>
+    <p class="page-sub">Change orders and approved invoices, grouped by project. Syncs live across all PM devices.</p>
     <div class="summary-row">
-      <div class="sum-card"><div class="sum-label">Pending COs</div><div class="sum-val red" id="sum-pending">0</div></div>
+      <div class="sum-card"><div class="sum-label">Pending items</div><div class="sum-val red" id="sum-pending">0</div></div>
       <div class="sum-card"><div class="sum-label">Fully complete</div><div class="sum-val green" id="sum-done">0</div></div>
       <div class="sum-card"><div class="sum-label">In accounting</div><div class="sum-val blue" id="sum-approved">0</div></div>
-      <div class="sum-card"><div class="sum-label">Total CO value</div><div class="sum-val gold" id="sum-total">$0</div></div>
+      <div class="sum-card"><div class="sum-label">Total value</div><div class="sum-val gold" id="sum-total">$0</div></div>
     </div>
     <div class="tracker-toolbar">
       <button class="tbar-btn blue-btn" onclick="openAddCO()"><i class="ti ti-plus"></i> Add pending CO</button>
@@ -973,8 +973,28 @@ function approveInvoice(id){
   inv.status='approved';
   inv.reviewedBy=currentPM?.name||'';
   inv.reviewedAt=new Date().toISOString();
+  // Route into the Invoice Tracker for the PM's further processing (same
+  // Stamp/Procore/Docusign workflow as a Change Order).
+  logCO({
+    id:genId(),
+    project:inv.project,
+    vendor:inv.vendor,
+    ceNumber:'',
+    amount:inv.amount,
+    costCode:'',
+    docType:'',
+    scope:'',
+    pm:inv.pm,
+    description:(inv.docType==='pay_app'?'Pay App':'Invoice')+(inv.filename?': '+inv.filename:''),
+    status:'pending',
+    source:inv.docType==='pay_app'?'payapp':'invoice',
+    fileKey:inv.fileKey||'',
+    sourceInvoiceId:inv.id,
+    loggedAt:new Date().toISOString(),
+    stepStamped:false,stepProcore:false,stepDocusign:false
+  });
   scheduleSave();renderQueue('invoices');renderQueue('payapp');
-  toast('Approved — routed to '+inv.pm+"'s pending invoices");
+  toast('Approved — routed to Invoice Tracker for '+inv.pm);
 }
 function rejectInvoice(id){
   if(!confirm('Reject and remove this document from the review queue? This cannot be undone.'))return;
@@ -1154,7 +1174,8 @@ function coCard(e){
   const scopeTag=e.scope==='in'?'<span class="tag scope-in">In scope</span>':e.scope==='out'?'<span class="tag scope-out">Out of scope</span>':'';
   const docTag=e.docType?`<span class="tag doc">${e.docType}</span>`:'';
   const pmTag=`<span class="tag pm-tag" style="border-color:${pmColor}30"><span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:${pmColor};margin-right:3px;vertical-align:middle"></span>${e.pm||'—'}</span>`;
-  const srcTag=e.source==='manual'?'<span class="tag source">Manual</span>':'<span class="tag source">Stamped</span>';
+  const srcTag=e.source==='invoice'?'<span class="tag source">Invoice</span>':e.source==='payapp'?'<span class="tag source">Pay App</span>':e.source==='manual'?'<span class="tag source">Manual</span>':'<span class="tag source">Stamped</span>';
+  const pdfLink=e.fileKey?`<a href="${CLAUDE_PROXY_URL}/file/${encodeURIComponent(e.fileKey)}" target="_blank" style="color:var(--red);font-weight:600;font-size:11.5px"><i class="ti ti-file-search"></i> View PDF</a>`:'';
   const isPending=e.status==='pending';
   const hasPdf=!!(e.pdfName);
   const pdfZone=isPending?`<div class="co-pdf-zone ${hasPdf?'has-pdf':''}" id="pdfzone-${e.id}" ondragover="event.preventDefault();this.classList.add('drag-over')" ondragleave="this.classList.remove('drag-over')" ondrop="handleCardDrop(event,'${e.id}')" onclick="document.getElementById('pdffile-${e.id}').click()"><i class="ti ti-${hasPdf?'file-check':'file-upload'}"></i><span>${hasPdf?e.pdfName:'Drop PDF here or click to upload'}</span>${hasPdf?`<span class="pdf-clear" onclick="event.stopPropagation();clearCardPdf('${e.id}')"><i class="ti ti-x"></i></span>`:''}</div><input type="file" id="pdffile-${e.id}" accept="application/pdf" style="display:none" onchange="handleCardFile(event,'${e.id}')"/>`:'';;
@@ -1173,9 +1194,11 @@ function coCard(e){
   }else{
     actions=`<div class="co-card-actions"><button class="ca-btn" onclick="emailFromTracker('${e.id}')"><i class="ti ti-mail"></i> Email accounting</button><button class="ca-btn del" onclick="deleteCO('${e.id}')"><i class="ti ti-trash"></i></button></div>`;
   }
+  const isInvoiceOrigin=e.source==='invoice'||e.source==='payapp';
+  const titlePrefix=e.ceNumber?e.ceNumber+' — ':(isInvoiceOrigin?'':'No CE# — ');
   return`<div class="co-card">
-    <div class="co-card-top"><span class="co-title">${e.ceNumber||'No CE#'} — ${e.vendor||'Unknown'}</span><span class="co-amt">${e.amount||'—'}</span></div>
-    <div class="co-meta">${e.description||''}${e.loggedAt?' · '+new Date(e.loggedAt).toLocaleDateString():''}</div>
+    <div class="co-card-top"><span class="co-title">${titlePrefix}${e.vendor||'Unknown'}</span><span class="co-amt">${e.amount||'—'}</span></div>
+    <div class="co-meta">${e.description||''}${e.loggedAt?' · '+new Date(e.loggedAt).toLocaleDateString():''}${pdfLink?' · '+pdfLink:''}</div>
     <div class="co-tags">${scopeTag}${docTag}${pmTag}${srcTag}</div>
     ${pdfZone}${checklist}${actions}
   </div>`;
