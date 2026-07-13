@@ -895,7 +895,13 @@ function updateTabBadges(){
   const pa=allInv.filter(e=>e.status==='needs_review'&&e.docType==='pay_app').length;
   const paBadge=document.getElementById('payAppBadge');if(paBadge){paBadge.textContent=pa;paBadge.style.background=pa>0?'var(--red)':'var(--muted2)';}
 }
-function allStepsDone(e){return e.stepStamped&&e.stepProcore&&e.stepDocusign;}
+// Invoices/pay apps have no Procore CE# or Docusign envelope to track (those
+// only make sense for a real Change Order), so for them the Stamp step alone
+// is the PM approval gate before it can move to Accounting.
+function allStepsDone(e){
+  if(e.source==='invoice'||e.source==='payapp')return e.stepStamped;
+  return e.stepStamped&&e.stepProcore&&e.stepDocusign;
+}
 function approveForAccounting(id){
   const t=getTracker();const i=t.findIndex(e=>e.id===id);
   if(i>=0){t[i].status='approved';t[i].approvedAt=new Date().toLocaleString();}
@@ -1183,22 +1189,24 @@ function coCard(e){
   const isPending=e.status==='pending';
   const hasPdf=!!(e.pdfName);
   const pdfZone=isPending?`<div class="co-pdf-zone ${hasPdf?'has-pdf':''}" id="pdfzone-${e.id}" ondragover="event.preventDefault();this.classList.add('drag-over')" ondragleave="this.classList.remove('drag-over')" ondrop="handleCardDrop(event,'${e.id}')" onclick="document.getElementById('pdffile-${e.id}').click()"><i class="ti ti-${hasPdf?'file-check':'file-upload'}"></i><span>${hasPdf?e.pdfName:'Drop PDF here or click to upload'}</span>${hasPdf?`<span class="pdf-clear" onclick="event.stopPropagation();clearCardPdf('${e.id}')"><i class="ti ti-x"></i></span>`:''}</div><input type="file" id="pdffile-${e.id}" accept="application/pdf" style="display:none" onchange="handleCardFile(event,'${e.id}')"/>`:'';;
+  const isInvoiceOrigin=e.source==='invoice'||e.source==='payapp';
   let checklist='',actions='';
   if(isPending){
     const s1=e.stepStamped,s2=e.stepProcore,s3=e.stepDocusign;
     const pcNote=e.procoreCE?` <span class="cl-note">CE: ${e.procoreCE}${e.procoreType?' · '+e.procoreType:''}</span>`:'';
     const dsNote=e.docusignID?` <span class="cl-note">Env: ${e.docusignID}</span>`:'';
+    // Invoices/pay apps have no Procore CE# or Docusign envelope to track —
+    // Stamp is the only step, and it alone gates "Move to accounting".
     checklist=`<div class="co-checklist">
       <div class="cl-item"><div class="cl-check ${s1?'done':''}" onclick="toggleStampStep('${e.id}')"></div><span class="cl-label ${s1?'done':''}">Stamped &amp; downloaded</span>${!s1?`<button class="cl-action" onclick="prefillStamp('${e.id}')">Stamp now →</button>`:''}</div>
-      <div class="cl-item"><div class="cl-check ${s2?'done':''}" onclick="${s2?'':'openProcoreModal(\''+e.id+'\')'}"></div><span class="cl-label ${s2?'done':''}">Uploaded to Procore${pcNote}</span>${!s2?`<button class="cl-action" onclick="openProcoreModal('${e.id}')">Mark done →</button>`:''}</div>
-      <div class="cl-item"><div class="cl-check ${s3?'done':''}" onclick="${s3?'':'openDocusignModal(\''+e.id+'\')'}"></div><span class="cl-label ${s3?'done':''}">Sent via Docusign${dsNote}</span>${!s3?`<button class="cl-action" onclick="openDocusignModal('${e.id}')">Mark done →</button>`:''}</div>
+      ${isInvoiceOrigin?'':`<div class="cl-item"><div class="cl-check ${s2?'done':''}" onclick="${s2?'':'openProcoreModal(\''+e.id+'\')'}"></div><span class="cl-label ${s2?'done':''}">Uploaded to Procore${pcNote}</span>${!s2?`<button class="cl-action" onclick="openProcoreModal('${e.id}')">Mark done →</button>`:''}</div>
+      <div class="cl-item"><div class="cl-check ${s3?'done':''}" onclick="${s3?'':'openDocusignModal(\''+e.id+'\')'}"></div><span class="cl-label ${s3?'done':''}">Sent via Docusign${dsNote}</span>${!s3?`<button class="cl-action" onclick="openDocusignModal('${e.id}')">Mark done →</button>`:''}</div>`}
     </div>`;
-    const allDone=s1&&s2&&s3;
-    actions=allDone?`<div class="all-done-banner"><i class="ti ti-circle-check"></i> All steps complete — ready for accounting</div><div class="co-card-actions"><button class="ca-btn approve-btn" onclick="approveForAccounting('${e.id}')"><i class="ti ti-arrow-right"></i> Move to accounting</button><button class="ca-btn del" onclick="deleteCO('${e.id}')"><i class="ti ti-trash"></i></button></div>`:`<div class="co-card-actions"><button class="ca-btn del" onclick="deleteCO('${e.id}')"><i class="ti ti-trash"></i></button></div>`;
+    const allDone=allStepsDone(e);
+    actions=allDone?`<div class="all-done-banner"><i class="ti ti-circle-check"></i> ${isInvoiceOrigin?'Stamped':'All steps complete'} — ready for accounting</div><div class="co-card-actions"><button class="ca-btn approve-btn" onclick="approveForAccounting('${e.id}')"><i class="ti ti-arrow-right"></i> Move to accounting</button><button class="ca-btn del" onclick="deleteCO('${e.id}')"><i class="ti ti-trash"></i></button></div>`:`<div class="co-card-actions"><button class="ca-btn del" onclick="deleteCO('${e.id}')"><i class="ti ti-trash"></i></button></div>`;
   }else{
     actions=`<div class="co-card-actions"><button class="ca-btn" onclick="emailFromTracker('${e.id}')"><i class="ti ti-mail"></i> Email accounting</button><button class="ca-btn del" onclick="deleteCO('${e.id}')"><i class="ti ti-trash"></i></button></div>`;
   }
-  const isInvoiceOrigin=e.source==='invoice'||e.source==='payapp';
   const titlePrefix=e.ceNumber?e.ceNumber+' — ':(isInvoiceOrigin?'':'No CE# — ');
   return`<div class="co-card">
     <div class="co-card-top"><span class="co-title">${titlePrefix}${e.vendor||'Unknown'}</span><span class="co-amt">${e.amount||'—'}</span></div>
