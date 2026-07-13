@@ -401,7 +401,7 @@ header{background:var(--charcoal);padding:0 1.5rem;display:flex;align-items:cent
   <!-- PENDING INVOICES -->
   <div class="panel" id="panel-invoices">
     <h1 class="page-title">Pending Invoices</h1>
-    <p class="page-sub">AI-extracted from emails sent to invoices@reddoorconstruction.com. Review, correct, view the PDF, and approve before they route to the PM.</p>
+    <p class="page-sub">AI-extracted from emails sent to invoices@reddoorconstruction.com. Review, correct, view the PDF, and confirm Project/PM before sending to the PM for their approval.</p>
     <div class="upload-drop" id="uploadDrop-invoices" onclick="document.getElementById('uploadInput-invoices').click()" ondragover="handleUploadDragOver(event,this)" ondragleave="handleUploadDragLeave(event,this)" ondrop="handleUploadDrop(event,this)">
       <input type="file" id="uploadInput-invoices" accept="application/pdf,image/*" style="display:none" onchange="handleUploadFiles(this.files,this.closest('.upload-drop'))"/>
       <i class="ti ti-cloud-upload upload-drop-icon"></i>
@@ -410,11 +410,11 @@ header{background:var(--charcoal);padding:0 1.5rem;display:flex;align-items:cent
     </div>
     <div class="summary-row">
       <div class="sum-card"><div class="sum-label">Needs review</div><div class="sum-val red" id="inv-sum-review">0</div></div>
-      <div class="sum-card"><div class="sum-label">Approved</div><div class="sum-val green" id="inv-sum-approved">0</div></div>
+      <div class="sum-card"><div class="sum-label">Sent to PM</div><div class="sum-val green" id="inv-sum-approved">0</div></div>
       <div class="sum-card"><div class="sum-label">Total value (needs review)</div><div class="sum-val gold" id="inv-sum-total">$0</div></div>
     </div>
     <div class="tracker-toolbar">
-      <select class="tbar-select" id="invFilterStatus" onchange="renderQueue('invoices')"><option value="needs_review">Needs review</option><option value="approved">Approved</option><option value="">All</option></select>
+      <select class="tbar-select" id="invFilterStatus" onchange="renderQueue('invoices')"><option value="needs_review">Needs review</option><option value="sent_to_pm">Sent to PM</option><option value="">All</option></select>
       <select class="tbar-select" id="invFilterPM" onchange="renderQueue('invoices')"><option value="">All PMs</option></select>
       <input class="tbar-search" type="text" id="invSearch" placeholder="Search vendor, project, sender…" oninput="renderQueue('invoices')"/>
       <button class="tbar-btn" onclick="loadCloud().then(()=>renderQueue('invoices'))"><i class="ti ti-refresh"></i> Refresh</button>
@@ -425,7 +425,7 @@ header{background:var(--charcoal);padding:0 1.5rem;display:flex;align-items:cent
   <!-- PAY APP -->
   <div class="panel" id="panel-payapp">
     <h1 class="page-title">Pay App</h1>
-    <p class="page-sub">Pay applications extracted from invoices@reddoorconstruction.com. Review, correct, view the PDF, and approve before they route to the PM.</p>
+    <p class="page-sub">Pay applications extracted from invoices@reddoorconstruction.com. Review, correct, view the PDF, and confirm Project/PM before sending to the PM for their approval.</p>
     <div class="upload-drop" id="uploadDrop-payapp" onclick="document.getElementById('uploadInput-payapp').click()" ondragover="handleUploadDragOver(event,this)" ondragleave="handleUploadDragLeave(event,this)" ondrop="handleUploadDrop(event,this)">
       <input type="file" id="uploadInput-payapp" accept="application/pdf,image/*" style="display:none" onchange="handleUploadFiles(this.files,this.closest('.upload-drop'))"/>
       <i class="ti ti-cloud-upload upload-drop-icon"></i>
@@ -434,11 +434,11 @@ header{background:var(--charcoal);padding:0 1.5rem;display:flex;align-items:cent
     </div>
     <div class="summary-row">
       <div class="sum-card"><div class="sum-label">Needs review</div><div class="sum-val red" id="pay-sum-review">0</div></div>
-      <div class="sum-card"><div class="sum-label">Approved</div><div class="sum-val green" id="pay-sum-approved">0</div></div>
+      <div class="sum-card"><div class="sum-label">Sent to PM</div><div class="sum-val green" id="pay-sum-approved">0</div></div>
       <div class="sum-card"><div class="sum-label">Total value (needs review)</div><div class="sum-val gold" id="pay-sum-total">$0</div></div>
     </div>
     <div class="tracker-toolbar">
-      <select class="tbar-select" id="payFilterStatus" onchange="renderQueue('payapp')"><option value="needs_review">Needs review</option><option value="approved">Approved</option><option value="">All</option></select>
+      <select class="tbar-select" id="payFilterStatus" onchange="renderQueue('payapp')"><option value="needs_review">Needs review</option><option value="sent_to_pm">Sent to PM</option><option value="">All</option></select>
       <select class="tbar-select" id="payFilterPM" onchange="renderQueue('payapp')"><option value="">All PMs</option></select>
       <input class="tbar-search" type="text" id="paySearch" placeholder="Search vendor, project, sender…" oninput="renderQueue('payapp')"/>
       <button class="tbar-btn" onclick="loadCloud().then(()=>renderQueue('payapp'))"><i class="ti ti-refresh"></i> Refresh</button>
@@ -966,15 +966,19 @@ function updateInvoiceField(id,field,val){
   inv[field]=val;
   scheduleSave();
 }
-function approveInvoice(id){
+// Accounting's action here is NOT a PM approval — it just confirms the
+// extracted data and assigns Project + PM, then routes the document into
+// the Invoice Tracker where the PM does their own review (Stamp/Procore/
+// Docusign) before it's truly approved.
+function sendInvoiceToPM(id){
   const inv=(cloudData.pendingInvoices||[]).find(e=>e.id===id);
   if(!inv)return;
-  if(!inv.vendor||!inv.project||!inv.pm){toast('Vendor, project, and PM are required before approving');return;}
-  inv.status='approved';
+  if(!inv.vendor||!inv.project||!inv.pm){toast('Vendor, project, and PM are required before sending to the PM');return;}
+  inv.status='sent_to_pm';
   inv.reviewedBy=currentPM?.name||'';
   inv.reviewedAt=new Date().toISOString();
-  // Route into the Invoice Tracker for the PM's further processing (same
-  // Stamp/Procore/Docusign workflow as a Change Order).
+  // Route into the Invoice Tracker for the PM's own review/processing
+  // (same Stamp/Procore/Docusign workflow as a Change Order).
   logCO({
     id:genId(),
     project:inv.project,
@@ -994,7 +998,7 @@ function approveInvoice(id){
     stepStamped:false,stepProcore:false,stepDocusign:false
   });
   scheduleSave();renderQueue('invoices');renderQueue('payapp');
-  toast('Approved — routed to Invoice Tracker for '+inv.pm);
+  toast('Sent to '+inv.pm+' — now in the Invoice Tracker for review');
 }
 function rejectInvoice(id){
   if(!confirm('Reject and remove this document from the review queue? This cannot be undone.'))return;
@@ -1060,7 +1064,7 @@ function renderQueue(kind){
   const filterPMVal=pmSel.value;
 
   document.getElementById(p+'-sum-review').textContent=all.filter(e=>e.status==='needs_review').length;
-  document.getElementById(p+'-sum-approved').textContent=all.filter(e=>e.status==='approved').length;
+  document.getElementById(p+'-sum-approved').textContent=all.filter(e=>e.status==='sent_to_pm').length;
   document.getElementById(p+'-sum-total').textContent=fmtUSD(all.filter(e=>e.status==='needs_review').reduce((s,e)=>s+parseAmt(e.amount),0));
 
   const filtered=all.filter(e=>{
@@ -1075,7 +1079,7 @@ function renderQueue(kind){
 
   const projOpts=getAllProjectNames();
   body.innerHTML=filtered.map(e=>{
-    const isReviewed=e.status==='approved';
+    const isReviewed=e.status==='sent_to_pm';
     const dt=e.receivedAt?new Date(e.receivedAt).toLocaleString('en-US',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}):'—';
     return`<div class="inv-row">
       <div class="inv-meta">
@@ -1085,7 +1089,7 @@ function renderQueue(kind){
         <span class="doc-badge ${e.docType||'unknown'}">${docTypeLabel(e.docType)}</span>
         ${e.confidence?`<span>AI confidence: ${e.confidence}</span>`:''}
         ${e.fileKey?`<a href="${CLAUDE_PROXY_URL}/file/${encodeURIComponent(e.fileKey)}" target="_blank" style="color:var(--red);font-weight:600"><i class="ti ti-file-search"></i> View PDF</a>`:'<span style="color:var(--muted2)">No file attached</span>'}
-        ${isReviewed?`<span style="color:var(--green,#3B6D11);font-weight:600">Approved by ${e.reviewedBy||'—'}</span>`:''}
+        ${isReviewed?`<span style="color:var(--green,#3B6D11);font-weight:600">Sent to PM by ${e.reviewedBy||'—'}</span>`:''}
       </div>
       <div><span class="inv-lbl">Vendor</span><input type="text" value="${(e.vendor||'').replace(/"/g,'&quot;')}" ${isReviewed?'disabled':''} onchange="updateInvoiceField('${e.id}','vendor',this.value)"/></div>
       <div><span class="inv-lbl">Project</span><input type="text" list="${cfg.datalistId}" value="${(e.project||'').replace(/"/g,'&quot;')}" ${isReviewed?'disabled':''} onchange="updateInvoiceField('${e.id}','project',this.value)"/></div>
@@ -1095,7 +1099,7 @@ function renderQueue(kind){
         ${PMS.map(x=>`<option value="${x.name}"${e.pm===x.name?' selected':''}>${x.name}</option>`).join('')}
       </select></div>
       <div class="inv-actions">
-        ${isReviewed?'':`<button class="tbar-btn blue-btn" onclick="approveInvoice('${e.id}')"><i class="ti ti-check"></i> Approve</button><button class="icon-btn" onclick="rejectInvoice('${e.id}')" title="Reject"><i class="ti ti-x"></i></button>`}
+        ${isReviewed?'':`<button class="tbar-btn blue-btn" onclick="sendInvoiceToPM('${e.id}')"><i class="ti ti-send"></i> Send to PM</button><button class="icon-btn" onclick="rejectInvoice('${e.id}')" title="Reject"><i class="ti ti-x"></i></button>`}
       </div>
     </div>`;
   }).join('')+`<datalist id="${cfg.datalistId}">${projOpts.map(x=>`<option value="${x}">`).join('')}</datalist>`;
