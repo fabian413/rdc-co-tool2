@@ -410,11 +410,12 @@ header{background:var(--charcoal);padding:0 1.5rem;display:flex;align-items:cent
     </div>
     <div class="summary-row">
       <div class="sum-card"><div class="sum-label">Needs review</div><div class="sum-val red" id="inv-sum-review">0</div></div>
-      <div class="sum-card"><div class="sum-label">Sent to PM</div><div class="sum-val green" id="inv-sum-approved">0</div></div>
+      <div class="sum-card"><div class="sum-label">Sent to PM</div><div class="sum-val blue" id="inv-sum-approved">0</div></div>
+      <div class="sum-card"><div class="sum-label">Approved</div><div class="sum-val green" id="inv-sum-final">0</div></div>
       <div class="sum-card"><div class="sum-label">Total value (needs review)</div><div class="sum-val gold" id="inv-sum-total">$0</div></div>
     </div>
     <div class="tracker-toolbar">
-      <select class="tbar-select" id="invFilterStatus" onchange="renderQueue('invoices')"><option value="needs_review">Needs review</option><option value="sent_to_pm">Sent to PM</option><option value="">All</option></select>
+      <select class="tbar-select" id="invFilterStatus" onchange="renderQueue('invoices')"><option value="needs_review">Needs review</option><option value="sent_to_pm">Sent to PM</option><option value="approved">Approved</option><option value="">All</option></select>
       <select class="tbar-select" id="invFilterPM" onchange="renderQueue('invoices')"><option value="">All PMs</option></select>
       <input class="tbar-search" type="text" id="invSearch" placeholder="Search vendor, project, sender…" oninput="renderQueue('invoices')"/>
       <button class="tbar-btn" onclick="loadCloud().then(()=>renderQueue('invoices'))"><i class="ti ti-refresh"></i> Refresh</button>
@@ -434,11 +435,12 @@ header{background:var(--charcoal);padding:0 1.5rem;display:flex;align-items:cent
     </div>
     <div class="summary-row">
       <div class="sum-card"><div class="sum-label">Needs review</div><div class="sum-val red" id="pay-sum-review">0</div></div>
-      <div class="sum-card"><div class="sum-label">Sent to PM</div><div class="sum-val green" id="pay-sum-approved">0</div></div>
+      <div class="sum-card"><div class="sum-label">Sent to PM</div><div class="sum-val blue" id="pay-sum-approved">0</div></div>
+      <div class="sum-card"><div class="sum-label">Approved</div><div class="sum-val green" id="pay-sum-final">0</div></div>
       <div class="sum-card"><div class="sum-label">Total value (needs review)</div><div class="sum-val gold" id="pay-sum-total">$0</div></div>
     </div>
     <div class="tracker-toolbar">
-      <select class="tbar-select" id="payFilterStatus" onchange="renderQueue('payapp')"><option value="needs_review">Needs review</option><option value="sent_to_pm">Sent to PM</option><option value="">All</option></select>
+      <select class="tbar-select" id="payFilterStatus" onchange="renderQueue('payapp')"><option value="needs_review">Needs review</option><option value="sent_to_pm">Sent to PM</option><option value="approved">Approved</option><option value="">All</option></select>
       <select class="tbar-select" id="payFilterPM" onchange="renderQueue('payapp')"><option value="">All PMs</option></select>
       <input class="tbar-search" type="text" id="paySearch" placeholder="Search vendor, project, sender…" oninput="renderQueue('payapp')"/>
       <button class="tbar-btn" onclick="loadCloud().then(()=>renderQueue('payapp'))"><i class="ti ti-refresh"></i> Refresh</button>
@@ -904,8 +906,17 @@ function allStepsDone(e){
 }
 function approveForAccounting(id){
   const t=getTracker();const i=t.findIndex(e=>e.id===id);
-  if(i>=0){t[i].status='approved';t[i].approvedAt=new Date().toLocaleString();}
-  cloudData.tracker=t;scheduleSave();renderTracker();updateTabBadges();toast('Moved to accounting');
+  if(i>=0){
+    t[i].status='approved';t[i].approvedAt=new Date().toLocaleString();
+    // If this entry originated from the invoice pipeline, close the loop:
+    // mark the original record as fully approved (PM stamped it and sent
+    // it on) instead of leaving it stuck at "Sent to PM" forever.
+    if(t[i].sourceInvoiceId){
+      const inv=(cloudData.pendingInvoices||[]).find(e=>e.id===t[i].sourceInvoiceId);
+      if(inv){inv.status='approved';inv.approvedBy=t[i].pm;inv.approvedAt=new Date().toISOString();}
+    }
+  }
+  cloudData.tracker=t;scheduleSave();renderTracker();renderQueue('invoices');renderQueue('payapp');updateTabBadges();toast('Moved to accounting');
 }
 function deleteCO(id){
   if(!confirm('Remove this CO?'))return;
@@ -1071,6 +1082,7 @@ function renderQueue(kind){
 
   document.getElementById(p+'-sum-review').textContent=all.filter(e=>e.status==='needs_review').length;
   document.getElementById(p+'-sum-approved').textContent=all.filter(e=>e.status==='sent_to_pm').length;
+  document.getElementById(p+'-sum-final').textContent=all.filter(e=>e.status==='approved').length;
   document.getElementById(p+'-sum-total').textContent=fmtUSD(all.filter(e=>e.status==='needs_review').reduce((s,e)=>s+parseAmt(e.amount),0));
 
   const filtered=all.filter(e=>{
@@ -1085,7 +1097,8 @@ function renderQueue(kind){
 
   const projOpts=getAllProjectNames();
   body.innerHTML=filtered.map(e=>{
-    const isReviewed=e.status==='sent_to_pm';
+    const isReviewed=e.status==='sent_to_pm'||e.status==='approved';
+    const isApproved=e.status==='approved';
     const dt=e.receivedAt?new Date(e.receivedAt).toLocaleString('en-US',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}):'—';
     return`<div class="inv-row">
       <div class="inv-meta">
@@ -1095,7 +1108,7 @@ function renderQueue(kind){
         <span class="doc-badge ${e.docType||'unknown'}">${docTypeLabel(e.docType)}</span>
         ${e.confidence?`<span>AI confidence: ${e.confidence}</span>`:''}
         ${e.fileKey?`<a href="${CLAUDE_PROXY_URL}/file/${encodeURIComponent(e.fileKey)}" target="_blank" style="color:var(--red);font-weight:600"><i class="ti ti-file-search"></i> View PDF</a>`:'<span style="color:var(--muted2)">No file attached</span>'}
-        ${isReviewed?`<span style="color:var(--green,#3B6D11);font-weight:600">Sent to PM by ${e.reviewedBy||'—'}</span>`:''}
+        ${isApproved?`<span style="color:var(--green,#3B6D11);font-weight:600"><i class="ti ti-circle-check"></i> Approved by ${e.approvedBy||'—'}</span>`:isReviewed?`<span style="color:var(--blue);font-weight:600">Sent to PM by ${e.reviewedBy||'—'}</span>`:''}
       </div>
       <div><span class="inv-lbl">Vendor</span><input type="text" value="${(e.vendor||'').replace(/"/g,'&quot;')}" ${isReviewed?'disabled':''} onchange="updateInvoiceField('${e.id}','vendor',this.value)"/></div>
       <div><span class="inv-lbl">Project</span><input type="text" list="${cfg.datalistId}" value="${(e.project||'').replace(/"/g,'&quot;')}" ${isReviewed?'disabled':''} onchange="updateInvoiceField('${e.id}','project',this.value)"/></div>
