@@ -167,6 +167,29 @@ table.bt tfoot td{padding:10px 12px;border-top:1.5px solid var(--ink);font-famil
 .dropzone.dragover{border-color:var(--red);background:rgba(192,41,26,.04);color:var(--red);}
 .dropzone b{color:var(--ink-soft);}
 
+/* GANTT */
+.gantt-wrap{background:var(--paper2);border:1px solid var(--line);border-radius:var(--rl);overflow:hidden;margin-bottom:1.5rem;}
+.gantt-legend{display:flex;gap:1.25rem;flex-wrap:wrap;padding:1rem 1.1rem .25rem;}
+.gantt-swatch-hatch{width:14px;height:10px;border-radius:3px;display:inline-block;background:repeating-linear-gradient(45deg,rgba(28,26,23,.22) 0 4px,rgba(28,26,23,.05) 4px 8px);border:1px solid var(--line);}
+.gantt-swatch-today{width:2px;height:12px;background:var(--red);display:inline-block;}
+.gantt-body{display:flex;border-top:1px solid var(--line);margin-top:.75rem;}
+.gantt-labels{flex:0 0 200px;border-right:1px solid var(--line);}
+.gantt-label-head{height:30px;border-bottom:1.5px solid var(--ink);background:rgba(28,26,23,.02);}
+.gantt-label{height:28px;display:flex;align-items:center;gap:6px;padding:0 10px;font-size:11.5px;font-weight:600;border-bottom:1px solid var(--line-soft);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.gantt-scroll{flex:1;overflow-x:auto;}
+.gantt-months{position:relative;height:30px;border-bottom:1.5px solid var(--ink);background:rgba(28,26,23,.02);}
+.gantt-month{position:absolute;top:0;height:100%;display:flex;align-items:center;justify-content:center;font-size:10px;font-family:'SF Mono',monospace;color:var(--ink-faint);border-right:1px solid var(--line-soft);box-sizing:border-box;white-space:nowrap;}
+.gantt-month.alt{background:rgba(28,26,23,.02);}
+.gantt-rows{position:relative;}
+.gantt-col{position:absolute;top:0;bottom:0;border-right:1px solid var(--line-soft);box-sizing:border-box;}
+.gantt-col.alt{background:rgba(28,26,23,.02);}
+.gantt-today{position:absolute;top:0;bottom:0;width:2px;background:var(--red);z-index:3;}
+.gantt-row{position:relative;height:28px;border-bottom:1px solid var(--line-soft);}
+.gantt-bar{position:absolute;top:6px;height:16px;border-radius:4px;box-sizing:border-box;cursor:default;}
+.gantt-bar.unknown{background:repeating-linear-gradient(45deg,rgba(28,26,23,.22) 0 5px,rgba(28,26,23,.05) 5px 10px);border:1px solid var(--line);}
+.gantt-fill{height:100%;border-radius:4px 0 0 4px;}
+.gantt-note{padding:.6rem 1.1rem 1rem;font-size:11px;color:var(--ink-faint);}
+
 @media print{.dash-toolbar,.tbl-controls,.tab-nav,.dropzone{display:none;}}
 </style>
 </head>
@@ -330,6 +353,28 @@ table.bt tfoot td{padding:10px 12px;border-top:1.5px solid var(--ink);font-famil
   <div class="aging-board">
     <div class="stage-bar" id="stageBar"></div>
     <div class="aging-legend" id="stageLegend"></div>
+  </div>
+
+  <div class="section-hdr"><h2><i class="ti ti-timeline" style="font-size:14px"></i> Manpower — Project Timeline</h2><span class="sh-note">bar = start → projected finish, filled by % complete</span></div>
+  <div class="gantt-wrap">
+    <div class="gantt-legend">
+      <div class="al-item"><span class="al-swatch" style="background:var(--green)"></span> Course of Construction</div>
+      <div class="al-item"><span class="al-swatch" style="background:var(--gold)"></span> Bidding</div>
+      <div class="al-item"><span class="al-swatch" style="background:var(--blue)"></span> Pre-Construction</div>
+      <div class="al-item"><span class="gantt-swatch-hatch"></span> No % data</div>
+      <div class="al-item"><span class="gantt-swatch-today"></span> Today</div>
+    </div>
+    <div class="gantt-body">
+      <div class="gantt-labels">
+        <div class="gantt-label-head"></div>
+        <div id="ganttLabels"></div>
+      </div>
+      <div class="gantt-scroll">
+        <div class="gantt-months" id="ganttMonths"></div>
+        <div class="gantt-rows" id="ganttRows"></div>
+      </div>
+    </div>
+    <div class="gantt-note" id="ganttNoDate"></div>
   </div>
 
   <div class="table-wrap">
@@ -747,9 +792,86 @@ function renderSnapshotAll(){
   renderWIP();
   renderManpowerKPIs();
   renderStageBar();
+  renderGantt();
   renderRoster();
   renderFinancialKPIs();
   renderFinancial();
+}
+
+function parseUSDate(s){
+  if(!s)return null;
+  const m=(s+'').match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if(!m)return null;
+  const d=new Date(Number(m[3]),Number(m[1])-1,Number(m[2]));
+  return isNaN(d)?null:d;
+}
+
+function hexAlpha(hex,alpha){
+  const h=(hex||'#888888').replace('#','');
+  const r=parseInt(h.substring(0,2),16),g=parseInt(h.substring(2,4),16),b=parseInt(h.substring(4,6),16);
+  return`rgba(${r},${g},${b},${alpha})`;
+}
+
+function renderGantt(){
+  const PX_PER_DAY=5;
+  const roster=snapshotData.roster;
+  const items=roster.filter(r=>parseUSDate(r.start)&&parseUSDate(r.finish)).map(r=>({...r,_start:parseUSDate(r.start),_finish:parseUSDate(r.finish)}));
+  const noDate=roster.filter(r=>!(parseUSDate(r.start)&&parseUSDate(r.finish)));
+  const monthsEl=document.getElementById('ganttMonths');
+  const rowsEl=document.getElementById('ganttRows');
+  const labelsEl=document.getElementById('ganttLabels');
+  const noteEl=document.getElementById('ganttNoDate');
+
+  if(!items.length){
+    monthsEl.innerHTML='';rowsEl.innerHTML='';labelsEl.innerHTML='';
+    noteEl.textContent='No projects with both a start and projected finish date to plot.';
+    return;
+  }
+  items.sort((a,b)=>a._start-b._start);
+
+  const minD=new Date(Math.min(...items.map(r=>r._start)));
+  const maxD=new Date(Math.max(...items.map(r=>r._finish)));
+  const chartStart=new Date(minD.getFullYear(),minD.getMonth(),1);
+  const chartEnd=new Date(maxD.getFullYear(),maxD.getMonth()+1,0);
+  const dayOffset=(d)=>Math.round((d-chartStart)/86400000);
+  const totalDays=dayOffset(chartEnd)+1;
+  const totalWidth=totalDays*PX_PER_DAY;
+
+  const months=[];
+  let cur=new Date(chartStart);
+  let mi=0;
+  while(cur<=chartEnd){
+    const next=new Date(cur.getFullYear(),cur.getMonth()+1,1);
+    const endOfRange=new Date(chartEnd.getFullYear(),chartEnd.getMonth(),chartEnd.getDate()+1);
+    const days=Math.round((Math.min(next,endOfRange)-cur)/86400000);
+    months.push({label:cur.toLocaleDateString('en-US',{month:'short',year:'2-digit'}),left:dayOffset(cur)*PX_PER_DAY,width:days*PX_PER_DAY,alt:mi%2===1});
+    cur=next;mi++;
+  }
+
+  monthsEl.style.width=totalWidth+'px';
+  monthsEl.innerHTML=months.map(m=>`<div class="gantt-month${m.alt?' alt':''}" style="left:${m.left}px;width:${m.width}px">${m.label}</div>`).join('');
+
+  const today=new Date();
+  const todayInRange=today>=chartStart&&today<=chartEnd;
+  const todayMarker=todayInRange?`<div class="gantt-today" style="left:${dayOffset(today)*PX_PER_DAY}px" title="Today"></div>`:'';
+  const colBg=months.map(m=>`<div class="gantt-col${m.alt?' alt':''}" style="left:${m.left}px;width:${m.width}px"></div>`).join('');
+
+  rowsEl.style.width=totalWidth+'px';
+  rowsEl.innerHTML=colBg+todayMarker+items.map(r=>{
+    const color=STAGE_COLORS[r.stage]||'#888';
+    const left=dayOffset(r._start)*PX_PER_DAY;
+    const width=Math.max(6,dayOffset(r._finish)*PX_PER_DAY-left);
+    const hasPct=r.pct!==null&&r.pct!==undefined;
+    const tip=`${r.name}: ${r.start} → ${r.finish}${hasPct?' ('+r.pct+'% complete)':' (no % data)'}`;
+    const bar=hasPct
+      ?`<div class="gantt-bar" style="left:${left}px;width:${width}px;background:${hexAlpha(color,.22)}" title="${tip}"><div class="gantt-fill" style="width:${Math.round(width*Math.min(100,r.pct)/100)}px;background:${color}"></div></div>`
+      :`<div class="gantt-bar unknown" style="left:${left}px;width:${width}px" title="${tip}"></div>`;
+    return`<div class="gantt-row">${bar}</div>`;
+  }).join('');
+
+  labelsEl.innerHTML=items.map(r=>`<div class="gantt-label" title="${r.name}"><span class="al-swatch" style="background:${STAGE_COLORS[r.stage]||'#888'};flex-shrink:0"></span>${r.name}</div>`).join('');
+
+  noteEl.textContent=noDate.length?`${noDate.length} project(s) without a full start/finish date aren't plotted: ${noDate.map(r=>r.name).join(', ')}.`:'';
 }
 
 function stageForProject(name){
