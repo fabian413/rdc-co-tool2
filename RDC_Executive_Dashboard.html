@@ -123,6 +123,7 @@ table.bt thead th{font-size:10px;letter-spacing:.06em;text-transform:uppercase;c
 table.bt thead th:hover{color:var(--red);}
 table.bt tbody td{padding:9px 12px;border-bottom:1px solid var(--line-soft);vertical-align:middle;}
 table.bt tbody tr:hover{background:rgba(192,41,26,.03);}
+table.bt tfoot td{padding:10px 12px;border-top:1.5px solid var(--ink);font-family:'SF Mono',monospace;}
 .cell-amt{font-family:'SF Mono',monospace;font-weight:600;text-align:right;}
 .cell-age{text-align:center;}
 .age-pill{display:inline-block;padding:2px 8px;border-radius:99px;font-size:10.5px;font-weight:700;}
@@ -292,6 +293,29 @@ table.bt tbody tr:hover{background:rgba(192,41,26,.03);}
   <div class="dropzone" id="snapshotDrop">
     <div><b>Update this tab:</b> drag &amp; drop the latest Smartsheet "Snap Shot" export (.xlsx) here, or <label for="snapshotFile" style="color:var(--red);cursor:pointer;text-decoration:underline">browse a file</label>. Updates apply to this browser only.</div>
     <input type="file" id="snapshotFile" accept=".xlsx" style="display:none" onchange="handleSnapshotFile(this.files[0])"/>
+  </div>
+
+  <div class="section-hdr"><h2><i class="ti ti-report-money" style="font-size:14px"></i> WIP Report — Work in Progress by Project</h2><span class="sh-note">contract value &amp; billing status</span></div>
+  <div class="table-wrap">
+    <div class="tbl-controls">
+      <input class="tbl-search" id="wipSearch" placeholder="Search project…" oninput="renderWIP()"/>
+    </div>
+    <div style="overflow-x:auto">
+      <table class="bt">
+        <thead>
+          <tr>
+            <th onclick="sortWIP('name')">Project</th>
+            <th onclick="sortWIP('stage')">Stage</th>
+            <th onclick="sortWIP('contract')" style="text-align:right">Contract Value</th>
+            <th onclick="sortWIP('pct')">% Paid</th>
+            <th onclick="sortWIP('paid')" style="text-align:right">Billed to Date</th>
+            <th onclick="sortWIP('remaining')" style="text-align:right">Remaining to Bill</th>
+          </tr>
+        </thead>
+        <tbody id="wipBody"></tbody>
+        <tfoot id="wipFoot"></tfoot>
+      </table>
+    </div>
   </div>
 
   <div class="section-hdr"><h2><i class="ti ti-users-group" style="font-size:14px"></i> Manpower — Project Pipeline</h2><span class="sh-note">by stage</span></div>
@@ -599,6 +623,7 @@ const DEFAULT_SNAPSHOT={
 let snapshotData=null;
 let rosterSortKey='stage',rosterSortDir='asc';
 let finSortKey='contract',finSortDir='desc';
+let wipSortKey='contract',wipSortDir='desc';
 
 function loadSnapshotData(){
   try{
@@ -719,11 +744,50 @@ function fmtDate(s){
 
 function renderSnapshotAll(){
   document.getElementById('snapshotAsOf').textContent='Snapshot as of '+fmtDate(snapshotData.updatedAt);
+  renderWIP();
   renderManpowerKPIs();
   renderStageBar();
   renderRoster();
   renderFinancialKPIs();
   renderFinancial();
+}
+
+function stageForProject(name){
+  const r=snapshotData.roster.find(r=>r.name===name);
+  return r?r.stage:'—';
+}
+
+function sortWIP(key){wipSortKey===key?wipSortDir=wipSortDir==='asc'?'desc':'asc':(wipSortKey=key,wipSortDir='desc');renderWIP();}
+
+function renderWIP(){
+  const search=(document.getElementById('wipSearch').value||'').toLowerCase();
+  let rows=snapshotData.financial
+    .filter(r=>!search||r.name.toLowerCase().includes(search))
+    .map(r=>({name:r.name,stage:stageForProject(r.name),contract:r.contract,pct:r.pct,paid:r.contract*r.pct/100,remaining:r.contract-r.contract*r.pct/100}));
+  rows.sort((a,b)=>{
+    let av=a[wipSortKey],bv=b[wipSortKey];
+    if(typeof av==='string'){av=av.toLowerCase();bv=bv.toLowerCase();}
+    if(av<bv)return wipSortDir==='asc'?-1:1;if(av>bv)return wipSortDir==='asc'?1:-1;return 0;
+  });
+  const tbody=document.getElementById('wipBody');
+  if(!rows.length){tbody.innerHTML='<tr class="empty-row"><td colspan="6">No matching projects</td></tr>';document.getElementById('wipFoot').innerHTML='';return;}
+  tbody.innerHTML=rows.map(r=>`<tr>
+    <td style="font-weight:600">${r.name}</td>
+    <td><span style="display:inline-flex;align-items:center;gap:5px"><span style="width:8px;height:8px;border-radius:50%;background:${STAGE_COLORS[r.stage]||'#888'};flex-shrink:0;display:inline-block"></span>${r.stage}</span></td>
+    <td class="cell-amt">${fmtUSD(r.contract)}</td>
+    <td><span class="pp-track"><span class="pp-fill" style="width:${Math.min(100,r.pct)}%"></span></span>${r.pct.toFixed(1)}%</td>
+    <td class="cell-amt">${fmtUSD(r.paid)}</td>
+    <td class="cell-amt">${fmtUSD(r.remaining)}</td>
+  </tr>`).join('');
+  const totContract=rows.reduce((s,r)=>s+r.contract,0);
+  const totPaid=rows.reduce((s,r)=>s+r.paid,0);
+  document.getElementById('wipFoot').innerHTML=`<tr style="font-weight:700;background:rgba(28,26,23,.02)">
+    <td colspan="2">Grand Total (${rows.length} project${rows.length===1?'':'s'})</td>
+    <td class="cell-amt">${fmtUSD(totContract)}</td>
+    <td>${(totContract?totPaid/totContract*100:0).toFixed(1)}%</td>
+    <td class="cell-amt">${fmtUSD(totPaid)}</td>
+    <td class="cell-amt">${fmtUSD(totContract-totPaid)}</td>
+  </tr>`;
 }
 
 function renderManpowerKPIs(){
