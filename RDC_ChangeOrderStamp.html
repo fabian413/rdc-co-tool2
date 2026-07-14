@@ -292,7 +292,7 @@ header{background:var(--charcoal);padding:0 1.5rem;display:flex;align-items:cent
       <div class="divider"></div>
       <div class="field-row">
         <div class="field"><label>Scope</label><div class="toggle-row"><button class="tbtn" id="scopeIn" onclick="setScope('in')">In scope</button><button class="tbtn" id="scopeOut" onclick="setScope('out')">Out of scope</button></div></div>
-        <div class="field"><label>Document type</label><div class="doc-toggle"><button class="dbtn" id="docCCO" onclick="setDoc('CCO')">CCO</button><button class="dbtn" id="docPCO" onclick="setDoc('PCO')">PCO</button><button class="dbtn" id="docSC" onclick="setDoc('SC')">SC</button><button class="dbtn" id="docPO" onclick="setDoc('PO')">PO</button><button class="dbtn" id="docNone" onclick="setDoc('None')">None</button></div></div>
+        <div class="field"><label>Document type</label><div class="doc-toggle"><button class="dbtn" id="docCCO" onclick="setDoc('CCO')">CCO</button><button class="dbtn" id="docPCO" onclick="setDoc('PCO')">PCO</button><button class="dbtn" id="docCCOPCO" onclick="setDoc('CCO/PCO')">CCO/PCO</button><button class="dbtn" id="docSC" onclick="setDoc('SC')">SC</button><button class="dbtn" id="docPO" onclick="setDoc('PO')">PO</button><button class="dbtn" id="docNone" onclick="setDoc('None')">None</button></div></div>
       </div>
       <div class="divider"></div>
       <div class="field-row">
@@ -393,7 +393,7 @@ header{background:var(--charcoal);padding:0 1.5rem;display:flex;align-items:cent
       <select class="tbar-select" id="filterPM" onchange="renderTracker()"><option value="">All PMs</option></select>
       <select class="tbar-select" id="filterStatus" onchange="renderTracker()"><option value="">All statuses</option><option value="pending">Pending</option><option value="approved">Accounting</option></select>
       <select class="tbar-select" id="filterSource" onchange="renderTracker()"><option value="">All sources</option><option value="co">Change Order</option><option value="invoice">Invoice</option><option value="payapp">Pay App</option></select>
-      <select class="tbar-select" id="filterDocType" onchange="renderTracker()"><option value="">All doc types</option><option value="CCO">CCO</option><option value="PCO">PCO</option><option value="SC">SC</option><option value="PO">PO</option><option value="None">None</option></select>
+      <select class="tbar-select" id="filterDocType" onchange="renderTracker()"><option value="">All doc types</option><option value="CCO">CCO</option><option value="PCO">PCO</option><option value="CCO/PCO">CCO/PCO</option><option value="SC">SC</option><option value="PO">PO</option><option value="None">None</option></select>
       <select class="tbar-select" id="filterProject" onchange="renderTracker()"><option value="">All projects</option></select>
       <input class="tbar-search" type="text" id="trackerSearch" placeholder="Search CE #, vendor, PM…" oninput="renderTracker()"/>
       <button class="tbar-btn" onclick="clearTracker()"><i class="ti ti-trash"></i> Clear all</button>
@@ -485,7 +485,7 @@ header{background:var(--charcoal);padding:0 1.5rem;display:flex;align-items:cent
     </div>
     <div class="field-row">
       <div class="field"><label>Cost code <span style="font-weight:400;color:var(--muted)">(optional)</span></label><select id="addco-costcode"><option value="">— Select —</option></select></div>
-      <div class="field"><label>Document type <span style="font-weight:400;color:var(--muted)">(optional)</span></label><select id="addco-doctype"><option value="">— Select —</option><option value="CCO">CCO</option><option value="PCO">PCO</option><option value="SC">SC</option><option value="PO">PO</option><option value="None">None</option></select></div>
+      <div class="field"><label>Document type <span style="font-weight:400;color:var(--muted)">(optional)</span></label><select id="addco-doctype"><option value="">— Select —</option><option value="CCO">CCO</option><option value="PCO">PCO</option><option value="CCO/PCO">CCO/PCO</option><option value="SC">SC</option><option value="PO">PO</option><option value="None">None</option></select></div>
     </div>
     <div class="field-row">
       <div class="field"><label>Scope <span style="font-weight:400;color:var(--muted)">(optional)</span></label><select id="addco-scope"><option value="">— Select —</option><option value="in">In scope</option><option value="out">Out of scope</option></select></div>
@@ -867,7 +867,8 @@ initSig('sigCanvas','pm');initSig('acctSigCanvas','acct');
 
 // ── TOGGLES ───────────────────────────────────────────────────
 function setScope(v){scopeVal=v;document.getElementById('scopeIn').className='tbtn'+(v==='in'?' a-in':'');document.getElementById('scopeOut').className='tbtn'+(v==='out'?' a-out':'');updatePreview();}
-function setDoc(v){docType=v;['CCO','PCO','SC','PO','None'].forEach(d=>document.getElementById('doc'+d).className='dbtn'+(d===v?' active':''));updatePreview();}
+const DOC_TYPES=[{id:'CCO',v:'CCO'},{id:'PCO',v:'PCO'},{id:'CCOPCO',v:'CCO/PCO'},{id:'SC',v:'SC'},{id:'PO',v:'PO'},{id:'None',v:'None'}];
+function setDoc(v){docType=v;DOC_TYPES.forEach(d=>document.getElementById('doc'+d.id).className='dbtn'+(d.v===v?' active':''));updatePreview();}
 function setAcctApproval(v){acctApproval=v;document.getElementById('acctApproved').className='tbtn'+(v==='approved'?' a-appr':'');document.getElementById('acctPending').className='tbtn'+(v==='pending'?' a-pend':'');document.getElementById('acctHold').className='tbtn'+(v==='hold'?' a-hold':'');updatePreview();}
 function handleUpload(e){const f=e.target.files[0];if(!f)return;uploadedFile=f;document.getElementById('uploadLabel').textContent=f.name;document.getElementById('uploadZone').style.borderColor='var(--red)';document.getElementById('autoFillBtn').style.display='flex';}
 
@@ -937,7 +938,7 @@ function clearAll(){
   document.getElementById('projectName').value='';
   document.getElementById('approvalDate').valueAsDate=new Date();document.getElementById('acctDate').valueAsDate=new Date();document.getElementById('checkDate').value='';
   scopeVal=null;docType=null;acctApproval=null;
-  ['CCO','PCO','SC','PO','None'].forEach(d=>document.getElementById('doc'+d).className='dbtn');
+  DOC_TYPES.forEach(d=>document.getElementById('doc'+d.id).className='dbtn');
   document.getElementById('scopeIn').className='tbtn';document.getElementById('scopeOut').className='tbtn';
   ['acctApproved','acctPending','acctHold'].forEach(id=>document.getElementById(id).className='tbtn');
   clearSig('sigCanvas','pm');clearSig('acctSigCanvas','acct');
