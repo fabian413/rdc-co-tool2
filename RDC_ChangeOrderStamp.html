@@ -598,6 +598,13 @@ function setSyncStatus(state,label){
   if(lbl)lbl.textContent=label||'';
 }
 
+// Snapshot of cloudData as of the last successful load/save, used by
+// saveCloud() to figure out which top-level collections (tracker,
+// projects, pendingInvoices) this tab actually changed, versus which
+// are just whatever happened to be in memory from the last load.
+let lastSyncedSnapshot=null;
+function snapshotCloudData(){lastSyncedSnapshot=JSON.parse(JSON.stringify(cloudData));}
+
 async function loadCloud(){
   setSyncStatus('syncing','Loading…');
   try{
@@ -605,6 +612,7 @@ async function loadCloud(){
     if(r.status===404){
       // Bin exists but is empty — initialize it
       cloudData={tracker:[],projects:{},pendingInvoices:[]};
+      snapshotCloudData();
       await saveCloud();
       setSyncStatus('synced','Synced');
       return true;
@@ -615,6 +623,7 @@ async function loadCloud(){
     if(!cloudData.tracker)cloudData.tracker=[];
     if(!cloudData.projects)cloudData.projects={};
     if(!cloudData.pendingInvoices)cloudData.pendingInvoices=[];
+    snapshotCloudData();
     setSyncStatus('synced','Synced');
     return true;
   }catch(e){
@@ -625,20 +634,53 @@ async function loadCloud(){
   }
 }
 
+// JSONBin only supports whole-document GET/PUT, so a naive save can lose
+// another writer's changes: e.g. a PM clears the tracker while Accounting
+// sends an invoice to a PM at the same moment — whichever saves last would
+// silently erase the other's completely unrelated change. To avoid that,
+// only the top-level keys this tab actually touched (diffed against the
+// snapshot from the last successful load/save) are merged onto a fresh
+// read of the document, and the write is verified and retried on conflict.
 async function saveCloud(){
   setSyncStatus('syncing','Saving…');
-  try{
-    const r=await fetch(BIN_URL,{
-      method:'PUT',
-      headers:HEADERS,
-      body:JSON.stringify(cloudData)
-    });
-    if(!r.ok)throw new Error('HTTP '+r.status);
-    setSyncStatus('synced','Saved');
-  }catch(e){
-    console.error('saveCloud error:',e);
-    setSyncStatus('error','Save failed');
-    toast('Cloud save failed — changes may not persist');
+  const maxAttempts=6;
+  for(let attempt=1;attempt<=maxAttempts;attempt++){
+    try{
+      const dirtyKeys=Object.keys(cloudData).filter((k)=>
+        JSON.stringify(cloudData[k])!==JSON.stringify(lastSyncedSnapshot&&lastSyncedSnapshot[k])
+      );
+      if(!dirtyKeys.length){setSyncStatus('synced','Saved');return;}
+
+      const freshRes=await fetch(BIN_URL+'/latest',{headers:HEADERS});
+      if(!freshRes.ok)throw new Error('HTTP '+freshRes.status);
+      const fresh=await freshRes.json();
+
+      const merged={...fresh};
+      dirtyKeys.forEach((k)=>{merged[k]=cloudData[k];});
+
+      const putRes=await fetch(BIN_URL,{method:'PUT',headers:HEADERS,body:JSON.stringify(merged)});
+      if(!putRes.ok)throw new Error('HTTP '+putRes.status);
+
+      const verifyRes=await fetch(BIN_URL+'/latest',{headers:HEADERS});
+      if(verifyRes.ok){
+        const verifyData=await verifyRes.json();
+        const matches=dirtyKeys.every((k)=>JSON.stringify(verifyData[k])===JSON.stringify(cloudData[k]));
+        if(matches){
+          cloudData=merged;
+          snapshotCloudData();
+          setSyncStatus('synced','Saved');
+          return;
+        }
+      }
+      await new Promise((resolve)=>setTimeout(resolve,150+Math.random()*300*attempt));
+    }catch(e){
+      console.error('saveCloud error:',e);
+      if(attempt===maxAttempts){
+        setSyncStatus('error','Save failed');
+        toast('Cloud save failed — changes may not persist');
+        return;
+      }
+    }
   }
 }
 
