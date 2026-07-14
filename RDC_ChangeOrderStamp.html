@@ -644,6 +644,7 @@ async function loadCloud(){
 async function saveCloud(){
   setSyncStatus('syncing','Saving…');
   const maxAttempts=6;
+  const rateLimitBackoff=(attempt)=>2000+Math.random()*2000*attempt;
   for(let attempt=1;attempt<=maxAttempts;attempt++){
     try{
       const dirtyKeys=Object.keys(cloudData).filter((k)=>
@@ -652,6 +653,7 @@ async function saveCloud(){
       if(!dirtyKeys.length){setSyncStatus('synced','Saved');return;}
 
       const freshRes=await fetch(BIN_URL+'/latest',{headers:HEADERS});
+      if(freshRes.status===429){await new Promise((r)=>setTimeout(r,rateLimitBackoff(attempt)));continue;}
       if(!freshRes.ok)throw new Error('HTTP '+freshRes.status);
       const fresh=await freshRes.json();
 
@@ -659,9 +661,14 @@ async function saveCloud(){
       dirtyKeys.forEach((k)=>{merged[k]=cloudData[k];});
 
       const putRes=await fetch(BIN_URL,{method:'PUT',headers:HEADERS,body:JSON.stringify(merged)});
+      if(putRes.status===429){await new Promise((r)=>setTimeout(r,rateLimitBackoff(attempt)));continue;}
       if(!putRes.ok)throw new Error('HTTP '+putRes.status);
 
       const verifyRes=await fetch(BIN_URL+'/latest',{headers:HEADERS});
+      if(verifyRes.status===429){
+        // Trust the successful PUT rather than adding more load while rate limited.
+        cloudData=merged;snapshotCloudData();setSyncStatus('synced','Saved');return;
+      }
       if(verifyRes.ok){
         const verifyData=await verifyRes.json();
         const matches=dirtyKeys.every((k)=>JSON.stringify(verifyData[k])===JSON.stringify(cloudData[k]));
