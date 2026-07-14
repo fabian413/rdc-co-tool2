@@ -239,7 +239,7 @@ async function processIntakeDocument(payload, env) {
               project: { type: ['string', 'null'] },
               amount: { type: ['string', 'null'] },
               description: { type: ['string', 'null'], description: 'Brief description of the work/services billed' },
-              scope: { type: ['string', 'null'], enum: ['in', 'out', null], description: 'Best-effort guess: "in" contracted scope, "out" additional/change work, null if undeterminable' },
+              scope: { type: ['string', 'null'], description: 'Best-effort guess: "in" for contracted scope, "out" for additional/change work, or null if undeterminable' },
               confidence: { type: 'string', enum: ['low', 'medium', 'high'] },
               notes: { type: ['string', 'null'], description: 'Anything the reviewer should double-check' },
             },
