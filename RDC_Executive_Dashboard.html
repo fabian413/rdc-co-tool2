@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
 <title>Red Door Construction — Executive CO Dashboard</title>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.9.0/dist/tabler-icons.min.css"/>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
 :root{
@@ -139,7 +140,33 @@ table.bt tbody tr:hover{background:rgba(192,41,26,.03);}
 .footnote{max-width:1300px;margin:0 auto;padding:0 2rem 3rem;font-size:11px;color:var(--ink-faint);font-family:'SF Mono',monospace;line-height:1.7;}
 .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--board);color:var(--paper2);padding:9px 18px;border-radius:var(--r);font-size:13px;opacity:0;transition:opacity .25s;pointer-events:none;z-index:9999;white-space:nowrap;}
 .toast.show{opacity:1;}
-@media print{.dash-toolbar,.tbl-controls{display:none;}}
+
+/* TABS */
+.tab-nav{max-width:1300px;margin:0 auto;padding:0 2rem;display:flex;gap:6px;border-bottom:1px solid var(--line);}
+.tab-btn{padding:11px 16px;font-size:12.5px;font-weight:600;color:var(--ink-faint);background:none;border:none;border-bottom:2px solid transparent;cursor:pointer;font-family:inherit;display:flex;align-items:center;gap:6px;margin-bottom:-1px;transition:color .15s;}
+.tab-btn:hover{color:var(--ink-soft);}
+.tab-btn.active{color:var(--red);border-bottom-color:var(--red);}
+.tab-pane{display:none;}
+.tab-pane.active{display:block;}
+
+/* KPI-4 */
+.kpi-row-4{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--line);border:1px solid var(--line);border-radius:var(--rl);overflow:hidden;margin-bottom:1.5rem;}
+@media(max-width:900px){.kpi-row-4{grid-template-columns:repeat(2,1fr);}}
+
+/* STAGE BAR */
+.stage-bar{display:flex;height:26px;border-radius:6px;overflow:hidden;border:1px solid var(--line-soft);margin-bottom:.9rem;}
+.stage-seg{display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#fff;font-family:'SF Mono',monospace;min-width:0;}
+
+/* PROGRESS PILL */
+.pp-track{width:64px;height:6px;background:var(--paper);border-radius:3px;overflow:hidden;display:inline-block;vertical-align:middle;margin-right:7px;border:1px solid var(--line-soft);}
+.pp-fill{display:block;height:100%;background:var(--blue);}
+
+/* DROPZONE */
+.dropzone{border:1.5px dashed var(--line);border-radius:var(--rl);padding:1rem 1.25rem;display:flex;align-items:center;justify-content:space-between;gap:1rem;margin-bottom:1.75rem;background:var(--paper2);font-size:12px;color:var(--ink-faint);flex-wrap:wrap;transition:all .15s;}
+.dropzone.dragover{border-color:var(--red);background:rgba(192,41,26,.04);color:var(--red);}
+.dropzone b{color:var(--ink-soft);}
+
+@media print{.dash-toolbar,.tbl-controls,.tab-nav,.dropzone{display:none;}}
 </style>
 </head>
 <body>
@@ -166,6 +193,13 @@ table.bt tbody tr:hover{background:rgba(192,41,26,.03);}
     </div>
   </div>
 </div>
+
+<div class="tab-nav">
+  <button class="tab-btn active" id="tabbtn-co" onclick="switchTab('co')"><i class="ti ti-file-invoice" style="font-size:14px"></i> Change Order Backlog</button>
+  <button class="tab-btn" id="tabbtn-snapshot" onclick="switchTab('snapshot')"><i class="ti ti-report-analytics" style="font-size:14px"></i> Manpower &amp; Financial Snapshot</button>
+</div>
+
+<div class="tab-pane active" id="tab-co">
 
 <!-- LOADING -->
 <div id="loadingState">
@@ -241,6 +275,100 @@ table.bt tbody tr:hover{background:rgba(192,41,26,.03);}
 
 <div class="footnote" id="footnote" style="display:none">
   Live data pulled from JSONBin cloud storage — shared across all PM devices and updated in real-time. Aging calculated from the date each CO was logged. Steps: ● Stamped ● Procore ● Docusign.
+</div>
+
+</div>
+
+<div class="tab-pane" id="tab-snapshot">
+<div class="dash">
+  <div class="dash-toolbar">
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <button class="t-btn" onclick="window.print()"><i class="ti ti-printer"></i> Print / PDF</button>
+      <button class="t-btn" onclick="resetSnapshotToDefault()"><i class="ti ti-restore"></i> Reset to default</button>
+    </div>
+    <span style="font-size:11px;color:var(--ink-faint);font-family:'SF Mono',monospace" id="snapshotAsOf"></span>
+  </div>
+
+  <div class="dropzone" id="snapshotDrop">
+    <div><b>Update this tab:</b> drag &amp; drop the latest Smartsheet "Snap Shot" export (.xlsx) here, or <label for="snapshotFile" style="color:var(--red);cursor:pointer;text-decoration:underline">browse a file</label>. Updates apply to this browser only.</div>
+    <input type="file" id="snapshotFile" accept=".xlsx" style="display:none" onchange="handleSnapshotFile(this.files[0])"/>
+  </div>
+
+  <div class="section-hdr"><h2><i class="ti ti-users-group" style="font-size:14px"></i> Manpower — Project Pipeline</h2><span class="sh-note">by stage</span></div>
+
+  <div class="kpi-row-4">
+    <div class="kpi"><div class="kpi-label">Active Projects</div><div class="kpi-val" id="kpi-mp-total">0</div><div class="kpi-sub">across all stages</div></div>
+    <div class="kpi"><div class="kpi-label">Course of Construction</div><div class="kpi-val green" id="kpi-mp-coc">0</div><div class="kpi-sub">in the field</div></div>
+    <div class="kpi"><div class="kpi-label">Bidding</div><div class="kpi-val gold" id="kpi-mp-bidding">0</div><div class="kpi-sub">not yet awarded</div></div>
+    <div class="kpi"><div class="kpi-label">Pre-Construction</div><div class="kpi-val" id="kpi-mp-precon">0</div><div class="kpi-sub">awarded, not started</div></div>
+  </div>
+
+  <div class="aging-board">
+    <div class="stage-bar" id="stageBar"></div>
+    <div class="aging-legend" id="stageLegend"></div>
+  </div>
+
+  <div class="table-wrap">
+    <div class="tbl-controls">
+      <input class="tbl-search" id="mpSearch" placeholder="Search project, PM, superintendent…" oninput="renderRoster()"/>
+      <select class="tbl-sel" id="mpStageFilter" onchange="renderRoster()">
+        <option value="">All stages</option>
+        <option value="Course of Construction">Course of Construction</option>
+        <option value="Pre-Construction">Pre-Construction</option>
+        <option value="Bidding">Bidding</option>
+      </select>
+    </div>
+    <div style="overflow-x:auto">
+      <table class="bt">
+        <thead>
+          <tr>
+            <th onclick="sortRoster('stage')">Stage</th>
+            <th onclick="sortRoster('name')">Project</th>
+            <th onclick="sortRoster('pm')">PM</th>
+            <th onclick="sortRoster('superintendent')">Superintendent</th>
+            <th onclick="sortRoster('apm')">APM</th>
+            <th onclick="sortRoster('start')">Start</th>
+            <th onclick="sortRoster('finish')">Proj. Finish</th>
+            <th onclick="sortRoster('pct')" style="text-align:center">% Complete</th>
+          </tr>
+        </thead>
+        <tbody id="rosterBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="section-hdr"><h2><i class="ti ti-currency-dollar" style="font-size:14px"></i> Financial — Contract Value &amp; Billing</h2><span class="sh-note">retainage &amp; balance-to-finish omitted — source formulas don't reconcile</span></div>
+
+  <div class="kpi-row-4">
+    <div class="kpi"><div class="kpi-label">Total Contract Value</div><div class="kpi-val" id="kpi-fin-contract">$0</div><div class="kpi-sub">active contracted work</div></div>
+    <div class="kpi"><div class="kpi-label">Total Billed to Date</div><div class="kpi-val green" id="kpi-fin-paid">$0</div><div class="kpi-sub">invoiced / paid</div></div>
+    <div class="kpi"><div class="kpi-label">Overall % Paid</div><div class="kpi-val" id="kpi-fin-pct">0%</div><div class="kpi-sub">portfolio weighted avg</div></div>
+    <div class="kpi"><div class="kpi-label">Remaining to Bill</div><div class="kpi-val gold" id="kpi-fin-remaining">$0</div><div class="kpi-sub">contract minus billed</div></div>
+  </div>
+
+  <div class="table-wrap">
+    <div class="tbl-controls">
+      <input class="tbl-search" id="finSearch" placeholder="Search project…" oninput="renderFinancial()"/>
+    </div>
+    <div style="overflow-x:auto">
+      <table class="bt">
+        <thead>
+          <tr>
+            <th onclick="sortFinancial('name')">Project</th>
+            <th onclick="sortFinancial('contract')" style="text-align:right">Contract Amount</th>
+            <th onclick="sortFinancial('pct')">% Paid</th>
+            <th onclick="sortFinancial('paid')" style="text-align:right">Billed to Date</th>
+            <th onclick="sortFinancial('remaining')" style="text-align:right">Remaining</th>
+          </tr>
+        </thead>
+        <tbody id="financialBody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+<div class="footnote">
+  Manpower &amp; Financial Snapshot is a point-in-time export from Smartsheet, not a live feed — drop an updated export above to refresh it in this browser. Retainage and "balance to finish" fields from the source report are excluded because their formulas don't reconcile against contract value (e.g. a line showing retainage or balance far larger than the contract itself) — have ops check the report's cross-sheet lookups before those are added back.
+</div>
 </div>
 
 <div class="toast" id="toast"></div>
@@ -407,6 +535,287 @@ function renderTable(){
 }
 
 loadAndRender();
+
+// ===== TABS =====
+function switchTab(id){
+  document.getElementById('tabbtn-co').classList.toggle('active',id==='co');
+  document.getElementById('tabbtn-snapshot').classList.toggle('active',id==='snapshot');
+  document.getElementById('tab-co').classList.toggle('active',id==='co');
+  document.getElementById('tab-snapshot').classList.toggle('active',id==='snapshot');
+}
+
+// ===== MANPOWER & FINANCIAL SNAPSHOT =====
+const STAGE_COLORS={'Course of Construction':'#5B9E5A','Bidding':'#C99A3D','Pre-Construction':'#3E7CB8'};
+
+const DEFAULT_SNAPSHOT={
+  updatedAt:'2026-07-14T00:00:00.000Z',
+  roster:[
+    {stage:'Course of Construction',name:'URA - PH2',pm:'',superintendent:'Rodriguez Jesus',apm:'',start:'10/6/2025',finish:'1/30/2026',pct:43},
+    {stage:'Course of Construction',name:'PASEO - BLOCK 2',pm:'',superintendent:'Rodriguez Jesus',apm:'',start:'5/10/2026',finish:'5/15/2026',pct:null},
+    {stage:'Course of Construction',name:'CANTINA LEON',pm:'',superintendent:'Richter David, Gonzalez Rene',apm:'',start:'2/3/2025',finish:'6/30/2025',pct:78},
+    {stage:'Course of Construction',name:"VMGTI - RESTROOM & ADA IMPROVEMENTS",pm:'Chatman Diedra',superintendent:'Diaz Tomas',apm:'Fanor Karl',start:'5/18/2026',finish:'10/30/2026',pct:17},
+    {stage:'Course of Construction',name:'VIZCAYA VILLAGE PHASE 2 - 5 BUILDING',pm:'Chatman Diedra',superintendent:'Richter David',apm:'Fanor Karl',start:'11/3/2025',finish:'10/19/2026',pct:32},
+    {stage:'Course of Construction',name:'LRFM Misc Project',pm:'Chatman Diedra',superintendent:'Diaz Tomas',apm:'Fanor Karl',start:'3/31/2025',finish:'9/1/2025',pct:null},
+    {stage:'Course of Construction',name:"FOOQ'S",pm:'Chatman Diedra',superintendent:'Diaz Tomas',apm:'Fanor Karl',start:'9/18/2023',finish:'7/7/2025',pct:92},
+    {stage:'Course of Construction',name:'SOUNDLUX & URA',pm:'Cruz Jannette',superintendent:'Rodriguez Jesus',apm:'',start:'9/1/2024',finish:'8/17/2026',pct:75},
+    {stage:'Course of Construction',name:'TEMPLE JUDEA FACADE',pm:'Cruz Jannette',superintendent:'Rodriguez Jesus',apm:'',start:'5/4/2026',finish:'7/24/2026',pct:0},
+    {stage:'Course of Construction',name:'MAMAN DELRAY',pm:"Maha'a Ashley",superintendent:'',apm:'Pena Milena',start:'6/12/2025',finish:'8/11/2026',pct:0},
+    {stage:'Course of Construction',name:'MAMAN SHADOWOOD',pm:"Maha'a Ashley",superintendent:'Davila Donis',apm:'Pena Milena',start:'6/12/2025',finish:'7/31/2026',pct:0},
+    {stage:'Course of Construction',name:'VMGTI - FLOORING',pm:'Mendez Hans, Cruz Jannette',superintendent:'Miranda Carlos',apm:'Fanor Karl',start:'5/4/2026',finish:'',pct:null},
+    {stage:'Course of Construction',name:'CAROLINA HERRERA',pm:'Salcedo Valentina',superintendent:'Sevilla Carlos',apm:'Gesto Kevin',start:'1/26/2026',finish:'7/28/2026',pct:0},
+    {stage:'Course of Construction',name:'ALAIA MDD',pm:'Salcedo Valentina',superintendent:'Castellano Jairo',apm:'Gesto Kevin',start:'11/3/2025',finish:'6/22/2026',pct:0},
+    {stage:'Pre-Construction',name:'ONE LIFE MARKET',pm:"Maha'a Ashley",superintendent:'Diaz Tomas',apm:'Pena Milena',start:'8/27/2025',finish:'3/1/2026',pct:null},
+    {stage:'Pre-Construction',name:'WIND ATHLTX - T.I.',pm:"Maha'a Ashley",superintendent:'Escobar Mike',apm:'Pena Milena',start:'4/27/2026',finish:'9/14/2026',pct:0},
+    {stage:'Bidding',name:'DELI LANE',pm:'',superintendent:'',apm:'',start:'12/1/2025',finish:'6/30/2026',pct:null},
+    {stage:'Bidding',name:'GUCCI - MDD',pm:'',superintendent:'',apm:'',start:'',finish:'',pct:null},
+    {stage:'Bidding',name:"HAPPEA'S AVENTURA",pm:"Maha'a Ashley",superintendent:'',apm:'Pena Milena',start:'',finish:'',pct:null},
+    {stage:'Bidding',name:'HOGSALT',pm:'',superintendent:'',apm:'',start:'',finish:'',pct:null},
+    {stage:'Bidding',name:'MAIDEN HOME',pm:'',superintendent:'',apm:'',start:'1/1/2025',finish:'1/1/2027',pct:null},
+    {stage:'Bidding',name:'MAMAN EAST BOCA',pm:'',superintendent:'',apm:'',start:'6/10/2025',finish:'6/10/2025',pct:null},
+    {stage:'Bidding',name:'PURA VIDA PEMBROKE PINES',pm:'',superintendent:'',apm:'',start:'2/5/2025',finish:'9/5/2025',pct:null},
+    {stage:'Bidding',name:'PURPLE OAK',pm:"Maha'a Ashley",superintendent:'',apm:'',start:'5/5/2025',finish:'8/29/2025',pct:null},
+    {stage:'Bidding',name:'PV SAWGRASS MILLS',pm:'',superintendent:'',apm:'',start:'',finish:'',pct:null},
+    {stage:'Bidding',name:'SUNLIFE ORGANICS',pm:'',superintendent:'',apm:'',start:'9/3/2025',finish:'12/3/2025',pct:null},
+    {stage:'Bidding',name:'TDC DELRAY',pm:'',superintendent:'',apm:'',start:'6/17/2025',finish:'12/17/2025',pct:null},
+    {stage:'Bidding',name:'TEMPLE JUDEA SOCIAL',pm:'',superintendent:'',apm:'',start:'11/20/2025',finish:'12/31/2025',pct:null},
+    {stage:'Bidding',name:'Temple Judea Court',pm:'',superintendent:'',apm:'',start:'10/1/2025',finish:'12/19/2025',pct:null}
+  ],
+  financial:[
+    {name:'ALAIA MDD',contract:2048473.60,pct:73.34},
+    {name:'CANTINA LEON',contract:1191573.31,pct:69.23},
+    {name:'CAROLINA HERRERA',contract:2292283.50,pct:69.56},
+    {name:"FOOQ'S",contract:9242274.36,pct:89.86},
+    {name:'MAMAN DELRAY',contract:827383.84,pct:43.53},
+    {name:'MAMAN SHADOWOOD',contract:903906.84,pct:58.65},
+    {name:'SOUNDLUX & URA',contract:2128840.44,pct:93.89},
+    {name:'TEMPLE JUDEA FACADE',contract:672084.79,pct:32.44},
+    {name:'URA - PH2',contract:659320.42,pct:81.94},
+    {name:'VIZCAYA VILLAGE PHASE 2 - 5 BUILDING',contract:11704754.00,pct:31.25},
+    {name:'VMGTI - FLOORING',contract:941130.86,pct:22.91},
+    {name:'VMGTI - RESTROOM & ADA IMPROVEMENTS',contract:2826018.45,pct:9.27}
+  ]
+};
+
+let snapshotData=null;
+let rosterSortKey='stage',rosterSortDir='asc';
+let finSortKey='contract',finSortDir='desc';
+
+function loadSnapshotData(){
+  try{
+    const raw=localStorage.getItem('rdc_snapshot_v1');
+    if(raw){snapshotData=JSON.parse(raw);return;}
+  }catch(e){}
+  snapshotData=DEFAULT_SNAPSHOT;
+}
+
+function resetSnapshotToDefault(){
+  localStorage.removeItem('rdc_snapshot_v1');
+  snapshotData=DEFAULT_SNAPSHOT;
+  renderSnapshotAll();
+  toast('Reset to default snapshot');
+}
+
+function saveSnapshotData(data){
+  snapshotData=data;
+  try{localStorage.setItem('rdc_snapshot_v1',JSON.stringify(data));}catch(e){}
+  renderSnapshotAll();
+}
+
+function findCol(header,include,exclude){
+  for(let i=0;i<header.length;i++){
+    const h=(header[i]+'').trim();
+    if(h.includes(include)&&(!exclude||!h.includes(exclude)))return i;
+  }
+  return -1;
+}
+
+function parseSnapshotWorkbook(wb){
+  const sheetToRows=(name)=>XLSX.utils.sheet_to_json(wb.Sheets[name],{header:1,defval:''});
+  const seen=new Map();
+  function rosterFromSheets(prefix,stage){
+    wb.SheetNames.filter(n=>n.startsWith(prefix)).forEach(name=>{
+      const rows=sheetToRows(name);
+      const header=rows[0]||[];
+      const iName=findCol(header,'Name'),iPM=findCol(header,'Project Manager','Assistant'),
+            iSup=findCol(header,'Superintendent'),iAPM=findCol(header,'Assistant Project Manager'),
+            iStart=findCol(header,'Start Date'),iFinish=findCol(header,'Finish Date'),
+            iPct=findCol(header,'Percent Complete');
+      rows.slice(1).forEach(r=>{
+        const nm=(r[iName]||'').toString().trim();
+        if(!nm||seen.has(nm))return;
+        const pctRaw=iPct>=0?r[iPct]:'';
+        seen.set(nm,{
+          stage,name:nm,
+          pm:(r[iPM]||'').toString().trim(),
+          superintendent:(r[iSup]||'').toString().trim(),
+          apm:(r[iAPM]||'').toString().trim(),
+          start:(r[iStart]||'').toString().trim(),
+          finish:(r[iFinish]||'').toString().trim(),
+          pct:(pctRaw===''||pctRaw===undefined)?null:Number(pctRaw)
+        });
+      });
+    });
+  }
+  rosterFromSheets('Manpower - Course of Constru','Course of Construction');
+  rosterFromSheets('Manpower - Precon','Pre-Construction');
+  rosterFromSheets('Manpower - Bidding','Bidding');
+
+  const finName=wb.SheetNames.find(n=>n.startsWith('Financial - Percentage Paid'));
+  const financial=[];
+  if(finName){
+    const rows=sheetToRows(finName);
+    const header=rows[0]||[];
+    const iName=findCol(header,'Name'),iAmt=findCol(header,'Revised Contract Amount'),iPct=findCol(header,'Percentage Paid');
+    let current=null;const agg={};
+    rows.slice(1).forEach(r=>{
+      const nm=(r[iName]||'').toString().trim();
+      if(nm){current=nm;if(!agg[current])agg[current]={contract:0,paid:0};}
+      if(!current)return;
+      const amt=parseFloat((r[iAmt]+'').replace(/[^0-9.-]/g,''))||0;
+      const pct=parseFloat(r[iPct])||0;
+      agg[current].contract+=amt;
+      agg[current].paid+=amt*(pct/100);
+    });
+    Object.keys(agg).forEach(nm=>{
+      const a=agg[nm];
+      if(a.contract>0)financial.push({name:nm,contract:a.contract,pct:a.paid/a.contract*100});
+    });
+  }
+  return{updatedAt:new Date().toISOString(),roster:[...seen.values()],financial};
+}
+
+function handleSnapshotFile(file){
+  if(!file)return;
+  const reader=new FileReader();
+  reader.onload=(e)=>{
+    try{
+      const wb=XLSX.read(new Uint8Array(e.target.result),{type:'array'});
+      const parsed=parseSnapshotWorkbook(wb);
+      if(!parsed.roster.length)throw new Error('No recognizable Manpower sheets found in this file');
+      saveSnapshotData(parsed);
+      toast('Snapshot updated from '+file.name);
+    }catch(err){
+      toast('Could not read file: '+(err.message||'unknown error'));
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+function setupDropzone(){
+  const dz=document.getElementById('snapshotDrop');
+  ['dragenter','dragover'].forEach(ev=>dz.addEventListener(ev,e=>{e.preventDefault();e.stopPropagation();dz.classList.add('dragover');}));
+  ['dragleave','drop'].forEach(ev=>dz.addEventListener(ev,e=>{e.preventDefault();e.stopPropagation();dz.classList.remove('dragover');}));
+  dz.addEventListener('drop',e=>{
+    const file=e.dataTransfer.files&&e.dataTransfer.files[0];
+    if(file)handleSnapshotFile(file);
+  });
+}
+
+function fmtDate(s){
+  const d=new Date(s);
+  if(isNaN(d))return'—';
+  return d.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
+}
+
+function renderSnapshotAll(){
+  document.getElementById('snapshotAsOf').textContent='Snapshot as of '+fmtDate(snapshotData.updatedAt);
+  renderManpowerKPIs();
+  renderStageBar();
+  renderRoster();
+  renderFinancialKPIs();
+  renderFinancial();
+}
+
+function renderManpowerKPIs(){
+  const roster=snapshotData.roster;
+  document.getElementById('kpi-mp-total').textContent=roster.length;
+  document.getElementById('kpi-mp-coc').textContent=roster.filter(r=>r.stage==='Course of Construction').length;
+  document.getElementById('kpi-mp-bidding').textContent=roster.filter(r=>r.stage==='Bidding').length;
+  document.getElementById('kpi-mp-precon').textContent=roster.filter(r=>r.stage==='Pre-Construction').length;
+}
+
+function renderStageBar(){
+  const roster=snapshotData.roster;
+  const stages=['Course of Construction','Bidding','Pre-Construction'];
+  const total=roster.length||1;
+  const bar=document.getElementById('stageBar');
+  bar.innerHTML=stages.map(s=>{
+    const n=roster.filter(r=>r.stage===s).length;
+    if(!n)return'';
+    const w=Math.max(6,Math.round(n/total*100));
+    return`<div class="stage-seg" style="width:${w}%;background:${STAGE_COLORS[s]}" title="${s}: ${n}">${n}</div>`;
+  }).join('');
+  document.getElementById('stageLegend').innerHTML=stages.map(s=>{
+    const n=roster.filter(r=>r.stage===s).length;
+    return`<div class="al-item"><span class="al-swatch" style="background:${STAGE_COLORS[s]}"></span> ${s} (${n})</div>`;
+  }).join('');
+}
+
+function sortRoster(key){rosterSortKey===key?rosterSortDir=rosterSortDir==='asc'?'desc':'asc':(rosterSortKey=key,rosterSortDir='asc');renderRoster();}
+
+function renderRoster(){
+  const search=(document.getElementById('mpSearch').value||'').toLowerCase();
+  const stageFilter=document.getElementById('mpStageFilter').value;
+  let rows=snapshotData.roster.filter(r=>{
+    if(stageFilter&&r.stage!==stageFilter)return false;
+    if(search&&![r.name,r.pm,r.superintendent,r.apm].filter(Boolean).join(' ').toLowerCase().includes(search))return false;
+    return true;
+  });
+  rows=rows.slice().sort((a,b)=>{
+    let av=a[rosterSortKey],bv=b[rosterSortKey];
+    if(rosterSortKey==='pct'){av=(av===null||av===undefined)?-1:av;bv=(bv===null||bv===undefined)?-1:bv;}
+    else{av=(av||'').toString().toLowerCase();bv=(bv||'').toString().toLowerCase();}
+    if(av<bv)return rosterSortDir==='asc'?-1:1;if(av>bv)return rosterSortDir==='asc'?1:-1;return 0;
+  });
+  const tbody=document.getElementById('rosterBody');
+  if(!rows.length){tbody.innerHTML='<tr class="empty-row"><td colspan="8">No matching projects</td></tr>';return;}
+  tbody.innerHTML=rows.map(r=>`<tr>
+    <td><span style="display:inline-flex;align-items:center;gap:5px"><span style="width:8px;height:8px;border-radius:50%;background:${STAGE_COLORS[r.stage]||'#888'};flex-shrink:0;display:inline-block"></span>${r.stage}</span></td>
+    <td style="font-weight:600">${r.name}</td>
+    <td>${r.pm||'—'}</td>
+    <td>${r.superintendent||'—'}</td>
+    <td>${r.apm||'—'}</td>
+    <td style="font-family:'SF Mono',monospace">${r.start||'—'}</td>
+    <td style="font-family:'SF Mono',monospace">${r.finish||'—'}</td>
+    <td style="text-align:center">${(r.pct===null||r.pct===undefined)?'—':r.pct+'%'}</td>
+  </tr>`).join('');
+}
+
+function sortFinancial(key){finSortKey===key?finSortDir=finSortDir==='asc'?'desc':'asc':(finSortKey=key,finSortDir='desc');renderFinancial();}
+
+function renderFinancialKPIs(){
+  const fin=snapshotData.financial;
+  const contract=fin.reduce((s,r)=>s+r.contract,0);
+  const paid=fin.reduce((s,r)=>s+r.contract*r.pct/100,0);
+  document.getElementById('kpi-fin-contract').textContent=fmtUSD(contract);
+  document.getElementById('kpi-fin-paid').textContent=fmtUSD(paid);
+  document.getElementById('kpi-fin-pct').textContent=(contract?(paid/contract*100):0).toFixed(1)+'%';
+  document.getElementById('kpi-fin-remaining').textContent=fmtUSD(contract-paid);
+}
+
+function renderFinancial(){
+  const search=(document.getElementById('finSearch').value||'').toLowerCase();
+  let rows=snapshotData.financial.filter(r=>!search||r.name.toLowerCase().includes(search));
+  rows=rows.map(r=>({...r,paid:r.contract*r.pct/100,remaining:r.contract-r.contract*r.pct/100}));
+  rows.sort((a,b)=>{
+    let av=a[finSortKey],bv=b[finSortKey];
+    if(typeof av==='string'){av=av.toLowerCase();bv=bv.toLowerCase();}
+    if(av<bv)return finSortDir==='asc'?-1:1;if(av>bv)return finSortDir==='asc'?1:-1;return 0;
+  });
+  const tbody=document.getElementById('financialBody');
+  if(!rows.length){tbody.innerHTML='<tr class="empty-row"><td colspan="5">No matching projects</td></tr>';return;}
+  tbody.innerHTML=rows.map(r=>`<tr>
+    <td style="font-weight:600">${r.name}</td>
+    <td class="cell-amt">${fmtUSD(r.contract)}</td>
+    <td><span class="pp-track"><span class="pp-fill" style="width:${Math.min(100,r.pct)}%"></span></span>${r.pct.toFixed(1)}%</td>
+    <td class="cell-amt">${fmtUSD(r.paid)}</td>
+    <td class="cell-amt">${fmtUSD(r.remaining)}</td>
+  </tr>`).join('');
+}
+
+loadSnapshotData();
+renderSnapshotAll();
+setupDropzone();
 </script>
 </body>
 </html>
