@@ -82,19 +82,28 @@ async function handleAutoFillProxy(request, env) {
 }
 
 // ── /file/:key — serve a stored attachment for viewing ─────────────
+// CORS headers are required here (not just on the POST endpoints) because
+// the Stamp form fetch()es this file directly to re-embed it in a stamped
+// PDF — a plain <a href> link (like "View PDF") doesn't need CORS since
+// navigation isn't subject to it, but fetch() is.
 async function handleFileServe(request, env, url) {
+  const corsHeaders = { 'Access-Control-Allow-Origin': ALLOWED_ORIGIN };
+
+  if (request.method === 'OPTIONS') {
+    return new Response(null, { headers: { ...corsHeaders, 'Access-Control-Allow-Methods': 'GET, OPTIONS' } });
+  }
   if (request.method !== 'GET') {
-    return new Response('Method not allowed', { status: 405 });
+    return new Response('Method not allowed', { status: 405, headers: corsHeaders });
   }
   const key = decodeURIComponent(url.pathname.replace('/file/', ''));
   if (!key) {
-    return new Response('Missing file key', { status: 400 });
+    return new Response('Missing file key', { status: 400, headers: corsHeaders });
   }
   const object = await env.INVOICE_FILES.get(key);
   if (!object) {
-    return new Response('File not found', { status: 404 });
+    return new Response('File not found', { status: 404, headers: corsHeaders });
   }
-  const headers = new Headers();
+  const headers = new Headers(corsHeaders);
   object.writeHttpMetadata(headers);
   headers.set('Cache-Control', 'private, max-age=3600');
   return new Response(object.body, { headers });

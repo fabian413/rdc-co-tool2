@@ -1090,6 +1090,7 @@ function sendInvoiceToPM(id){
     status:'pending',
     source:inv.docType==='pay_app'?'payapp':'invoice',
     fileKey:inv.fileKey||'',
+    filename:inv.filename||'',
     sourceInvoiceId:inv.id,
     loggedAt:new Date().toISOString(),
     stepStamped:false,stepProcore:false,stepDocusign:false
@@ -1350,7 +1351,7 @@ function clearCardPdf(id){const t=getTracker();const i=t.findIndex(e=>e.id===id)
 function prefillStamp(id){
   const e=getTracker().find(x=>x.id===id);if(!e)return;
   switchTab('stamp');
-  setTimeout(()=>{
+  setTimeout(async()=>{
     if(e.project)document.getElementById('projectName').value=e.project;
     if(e.vendor)document.getElementById('vendorName').value=e.vendor;
     if(e.ceNumber)document.getElementById('ceNumber').value=e.ceNumber;
@@ -1359,8 +1360,26 @@ function prefillStamp(id){
     if(e.description)document.getElementById('coDescription').value=e.description;
     if(e.scope)setScope(e.scope);if(e.docType)setDoc(e.docType);
     document.getElementById('approvalDate').valueAsDate=new Date();
-    if(e.pdfData&&e.pdfName){try{const b=atob(e.pdfData),ab=new ArrayBuffer(b.length),ia=new Uint8Array(ab);for(let i=0;i<b.length;i++)ia[i]=b.charCodeAt(i);uploadedFile=new File([ab],e.pdfName,{type:'application/pdf'});document.getElementById('uploadLabel').textContent=e.pdfName+' (from tracker)';document.getElementById('uploadZone').style.borderColor='var(--green)';document.getElementById('autoFillBtn').style.display='flex';}catch(ex){}}
-    updatePreview();toast(e.pdfName?'Pre-filled with attached PDF — sign and download':'Pre-filled — attach PDF, sign, and download');
+    let attached=false;
+    if(e.pdfData&&e.pdfName){
+      try{const b=atob(e.pdfData),ab=new ArrayBuffer(b.length),ia=new Uint8Array(ab);for(let i=0;i<b.length;i++)ia[i]=b.charCodeAt(i);uploadedFile=new File([ab],e.pdfName,{type:'application/pdf'});document.getElementById('uploadLabel').textContent=e.pdfName+' (from tracker)';document.getElementById('uploadZone').style.borderColor='var(--green)';document.getElementById('autoFillBtn').style.display='flex';attached=true;}catch(ex){}
+    }else if(e.fileKey){
+      // Invoice/pay-app entries store their original file in R2, not as
+      // local pdfData — fetch it so the stamp lands on the real document.
+      try{
+        const res=await fetch(CLAUDE_PROXY_URL+'/file/'+encodeURIComponent(e.fileKey));
+        if(res.ok){
+          const blob=await res.blob();
+          const name=e.filename||'attachment.pdf';
+          uploadedFile=new File([blob],name,{type:blob.type||'application/pdf'});
+          document.getElementById('uploadLabel').textContent=name+' (from tracker)';
+          document.getElementById('uploadZone').style.borderColor='var(--green)';
+          document.getElementById('autoFillBtn').style.display='flex';
+          attached=true;
+        }
+      }catch(ex){}
+    }
+    updatePreview();toast(attached?'Pre-filled with attached PDF — sign and download':'Pre-filled — attach PDF, sign, and download');
   },100);
 }
 
