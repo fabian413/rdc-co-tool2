@@ -258,8 +258,8 @@ header{background:var(--charcoal);padding:0 1.5rem;display:flex;align-items:cent
   </header>
 
   <div class="tabs">
-    <button class="tab active" id="tab-stamp" onclick="switchTab('stamp')"><i class="ti ti-stamp"></i> Stamp CO</button>
     <button class="tab" id="tab-tracker" onclick="switchTab('tracker')"><i class="ti ti-folders"></i> Invoice Tracker <span class="nbadge" id="pendingBadge">0</span></button>
+    <button class="tab active" id="tab-stamp" onclick="switchTab('stamp')"><i class="ti ti-stamp"></i> Stamp Invoice</button>
     <button class="tab" id="tab-invoices" onclick="switchTab('invoices')"><i class="ti ti-mail"></i> Pending Invoices <span class="nbadge" id="invoicesBadge">0</span></button>
     <button class="tab" id="tab-payapp" onclick="switchTab('payapp')"><i class="ti ti-file-invoice"></i> Pay App <span class="nbadge" id="payAppBadge">0</span></button>
     <button class="tab" id="tab-projects" onclick="switchTab('projects')"><i class="ti ti-building"></i> Projects</button>
@@ -267,7 +267,7 @@ header{background:var(--charcoal);padding:0 1.5rem;display:flex;align-items:cent
 
   <!-- STAMP -->
   <div class="panel active" id="panel-stamp">
-    <h1 class="page-title">Change order stamp</h1>
+    <h1 class="page-title">Invoice stamp</h1>
     <p class="page-sub" id="stampSub"></p>
     <div class="draft-bar">
       <button class="drbtn primary" onclick="saveDraft()"><i class="ti ti-device-floppy"></i> Save draft</button>
@@ -286,13 +286,13 @@ header{background:var(--charcoal);padding:0 1.5rem;display:flex;align-items:cent
         <div class="field"><label>Change order amount</label><input type="text" id="coAmount" placeholder="e.g. $4,250.00"/></div>
       </div>
       <div class="field-row">
-        <div class="field"><label>Cost code</label><input type="text" id="costCode" placeholder="e.g. 03-200"/></div>
+        <div class="field"><label>Cost code</label><select id="costCode" onchange="updatePreview()"><option value="">— Select —</option></select></div>
         <div class="field"><label>Description</label><input type="text" id="coDescription" placeholder="Brief description of work"/></div>
       </div>
       <div class="divider"></div>
       <div class="field-row">
         <div class="field"><label>Scope</label><div class="toggle-row"><button class="tbtn" id="scopeIn" onclick="setScope('in')">In scope</button><button class="tbtn" id="scopeOut" onclick="setScope('out')">Out of scope</button></div></div>
-        <div class="field"><label>Document type</label><div class="doc-toggle"><button class="dbtn" id="docCCO" onclick="setDoc('CCO')">CCO</button><button class="dbtn" id="docSC" onclick="setDoc('SC')">SC</button><button class="dbtn" id="docPO" onclick="setDoc('PO')">PO</button><button class="dbtn" id="docNone" onclick="setDoc('None')">None</button></div></div>
+        <div class="field"><label>Document type</label><div class="doc-toggle"><button class="dbtn" id="docCCO" onclick="setDoc('CCO')">CCO</button><button class="dbtn" id="docPCO" onclick="setDoc('PCO')">PCO</button><button class="dbtn" id="docSC" onclick="setDoc('SC')">SC</button><button class="dbtn" id="docPO" onclick="setDoc('PO')">PO</button><button class="dbtn" id="docNone" onclick="setDoc('None')">None</button></div></div>
       </div>
       <div class="divider"></div>
       <div class="field-row">
@@ -481,8 +481,8 @@ header{background:var(--charcoal);padding:0 1.5rem;display:flex;align-items:cent
       <div class="field"><label>Amount <span style="font-weight:400;color:var(--muted)">(optional)</span></label><input type="text" id="addco-amount" placeholder="e.g. $4,250.00"/></div>
     </div>
     <div class="field-row">
-      <div class="field"><label>Cost code <span style="font-weight:400;color:var(--muted)">(optional)</span></label><input type="text" id="addco-costcode" placeholder="e.g. 03-200"/></div>
-      <div class="field"><label>Document type <span style="font-weight:400;color:var(--muted)">(optional)</span></label><select id="addco-doctype"><option value="">— Select —</option><option value="CCO">CCO</option><option value="SC">SC</option><option value="PO">PO</option><option value="None">None</option></select></div>
+      <div class="field"><label>Cost code <span style="font-weight:400;color:var(--muted)">(optional)</span></label><select id="addco-costcode"><option value="">— Select —</option></select></div>
+      <div class="field"><label>Document type <span style="font-weight:400;color:var(--muted)">(optional)</span></label><select id="addco-doctype"><option value="">— Select —</option><option value="CCO">CCO</option><option value="PCO">PCO</option><option value="SC">SC</option><option value="PO">PO</option><option value="None">None</option></select></div>
     </div>
     <div class="field-row">
       <div class="field"><label>Scope <span style="font-weight:400;color:var(--muted)">(optional)</span></label><select id="addco-scope"><option value="">— Select —</option><option value="in">In scope</option><option value="out">Out of scope</option></select></div>
@@ -651,6 +651,63 @@ const PMS=[
   {name:'Valentina Salcedo',initials:'VS',color:'#D85A30',role:'pm'},
   {name:'Jannette Cruz',   initials:'JC',color:'#D4537E',role:'pm'},
 ];
+// ── MASTER COST CODES (Master Cost Code FB1, REV: 241112) ──────
+const MASTER_COST_CODES=[
+  ['01-000','General Conditions'],['01-001','General Requirements'],['01-041','Project Manager'],
+  ['01-044','Mgmt Vehicles'],['01-045','Project Ex'],['01-100','Permits & Fees'],['01-101','Supervision'],
+  ['01-120','Safety'],['01-123','First Aid Supplies'],['01-140','Field Office Supplies/Courier/Postage'],
+  ['01-145','Postage/Courier'],['01-160','Project Documentation'],['01-200','General Labor'],
+  ['01-355','Temporary Protection'],['01-511','Temporary Utilities'],['01-512','Final Utilities'],
+  ['01-521','Temporary Facilities'],['01-525','Assistant Project Manager'],['01-592','Security'],
+  ['01-651','Engineer/Architect Fees'],['01-701','Surveying'],['01-705','Trash Hauling'],
+  ['01-725','Punch List'],['01-730','Tools & Equipment'],['01-735','Preliminary Cleaning'],
+  ['01-740','Final Cleaning'],['01-900','Construction Management Fee'],['01-910','Contingency'],
+  ['01-920','Insurance'],['01-930','Bond'],['01-940','Warranty Reserve'],
+  ['01-950','Landlord Construction Fee/Deposit'],
+  ['02-000','Site Construction'],['02-050','Demolition'],['02-100','Sitework'],['02-111','Testing Lab'],
+  ['02-115','Drainage'],['02-200','Site Clear'],['02-210','Excavation'],['02-215','Land Fill & Grade'],
+  ['02-240','Stabilization'],['02-250','Shoring & Underpinning'],['02-510','Paving, Curbs & Gutters'],
+  ['02-720','Site Utilities'],['02-740','Septic Tank'],['02-810','Irrigation'],
+  ['02-820','Fences and Gates'],['02-830','Chain Link Fences'],['02-844','Parking Improvements'],
+  ['02-900','Landscape'],
+  ['03-000','Concrete'],['03-100','Concrete'],['03-105','Light Weight Concrete'],['03-110','Pile Driving'],
+  ['03-205','Rebar - Sub'],['03-308','Decorative Concrete'],['03-400','Precast Concrete'],
+  ['03-810','Concrete Cutting'],['03-953','Misc. Concrete Testing'],
+  ['04-000','Masonry'],['04-030','Masonry'],['04-222','Glass Block'],
+  ['05-000','Metals'],['05-110','Structural Framing'],['05-510','Misc. Metals'],
+  ['05-705','Ornamental Rail & Fence'],
+  ['06-000','Wood & Plastic'],['06-101','Framing'],['06-113','Wood Trusses'],['06-200','Rough Lumber'],
+  ['06-250','Rough Carpentry/Labor'],['06-300','Finish Carpentry/Labor'],['06-405','Millwork'],
+  ['06-410','Cabinets'],['06-415','Countertop'],
+  ['07-000','Thermal & Moisture Protection'],['07-111','Waterproofing & Caulking'],['07-211','Insulation'],
+  ['07-312','Roofing'],['07-525','Membrane: App Membrane'],
+  ['08-000','Doors & Windows'],['08-110','Metal Doors & Frames'],['08-150','Special Doors'],
+  ['08-510','Entrances/Storefront/Windows'],['08-560','Storm Shutters'],['08-565','Window Blinds'],
+  ['08-705','Corridor Repairs'],['08-710','Finish Hardware'],['08-830','Mirrors'],
+  ['09-000','Finishes'],['09-201','FRP'],['09-206','Stucco/Plaster'],['09-251','Drywall'],
+  ['09-310','Marble / Ceramic Tile'],['09-510','Acoustical Ceiling'],['09-520','Special Ceilings'],
+  ['09-560','Special Flooring'],['09-640','Wood Flooring'],['09-660','Resilient Flooring'],
+  ['09-685','Carpet'],['09-910','Painting'],['09-960','Wallcovering'],
+  ['10-000','Specialties'],['10-160','Toilet Partitions'],['10-430','Signage'],
+  ['10-523','Fire Extinguishers'],['10-605','Toilet Accessories'],['10-675','Shelving'],
+  ['10-800','Misc. Toilet/Bath Equip'],
+  ['11-000','Equipment'],['11-150','Parking Controls Equipment'],['11-164','Loading Docks'],
+  ['11-400','Food Service Equip'],['11-425','Hood and Ventilation Equipment'],['11-460','Appliances'],
+  ['11-480','Recreational Equipment'],
+  ['12-000','Furnishings'],['12-001','Misc. Specialties'],['12-100','Awnings'],['12-500','Furniture'],
+  ['13-000','Special Construction'],['13-159','Swimming Pool'],
+  ['14-000','Conveying Systems'],['14-001','Elevators'],['14-800','Scaffolding'],
+  ['15-000','Mechanical'],['15-300','Fire Sprinkler'],['15-400','Plumbing'],['15-500','HVAC'],
+  ['16-000','Electrical'],['16-001','Electrical'],['16-400','Low Voltage'],['16-500','Lighting'],
+  ['16-600','Special Systems'],['16-700','Communications'],['16-721','Fire Alarm System'],
+  ['16-800','Sound & Video'],
+];
+function costCodeOptions(selected){
+  return '<option value="">— Select —</option>'+MASTER_COST_CODES.map(([code,label])=>{
+    const val=code+' — '+label;
+    return `<option value="${val}"${val===selected?' selected':''}>${val}</option>`;
+  }).join('');
+}
 const ACCOUNTING_USER={name:'Accounting',initials:'AC',color:'#4A4640',role:'accounting'};
 const ACCT_EMAILS=['accounting@reddoorconstruction.com','paola@reddoorconstruction.com'];
 const DRAFT_PREFIX='rdc_draft_v3_';
@@ -714,6 +771,11 @@ function populateProjectSelects(){
   document.getElementById('projectName').innerHTML=o1;
   document.getElementById('addco-project').innerHTML=o2;
 }
+// Cost codes are a fixed master list, not per-PM cloud data — populate once.
+(function populateCostCodeSelects(){
+  document.getElementById('costCode').innerHTML=costCodeOptions();
+  document.getElementById('addco-costcode').innerHTML=costCodeOptions();
+})();
 
 // ── LOGIN ─────────────────────────────────────────────────────
 (function buildLogin(){
@@ -802,7 +864,7 @@ initSig('sigCanvas','pm');initSig('acctSigCanvas','acct');
 
 // ── TOGGLES ───────────────────────────────────────────────────
 function setScope(v){scopeVal=v;document.getElementById('scopeIn').className='tbtn'+(v==='in'?' a-in':'');document.getElementById('scopeOut').className='tbtn'+(v==='out'?' a-out':'');updatePreview();}
-function setDoc(v){docType=v;['CCO','SC','PO','None'].forEach(d=>document.getElementById('doc'+d).className='dbtn'+(d===v?' active':''));updatePreview();}
+function setDoc(v){docType=v;['CCO','PCO','SC','PO','None'].forEach(d=>document.getElementById('doc'+d).className='dbtn'+(d===v?' active':''));updatePreview();}
 function setAcctApproval(v){acctApproval=v;document.getElementById('acctApproved').className='tbtn'+(v==='approved'?' a-appr':'');document.getElementById('acctPending').className='tbtn'+(v==='pending'?' a-pend':'');document.getElementById('acctHold').className='tbtn'+(v==='hold'?' a-hold':'');updatePreview();}
 function handleUpload(e){const f=e.target.files[0];if(!f)return;uploadedFile=f;document.getElementById('uploadLabel').textContent=f.name;document.getElementById('uploadZone').style.borderColor='var(--red)';document.getElementById('autoFillBtn').style.display='flex';}
 
@@ -872,7 +934,7 @@ function clearAll(){
   document.getElementById('projectName').value='';
   document.getElementById('approvalDate').valueAsDate=new Date();document.getElementById('acctDate').valueAsDate=new Date();document.getElementById('checkDate').value='';
   scopeVal=null;docType=null;acctApproval=null;
-  ['CCO','SC','PO','None'].forEach(d=>document.getElementById('doc'+d).className='dbtn');
+  ['CCO','PCO','SC','PO','None'].forEach(d=>document.getElementById('doc'+d).className='dbtn');
   document.getElementById('scopeIn').className='tbtn';document.getElementById('scopeOut').className='tbtn';
   ['acctApproved','acctPending','acctHold'].forEach(id=>document.getElementById(id).className='tbtn');
   clearSig('sigCanvas','pm');clearSig('acctSigCanvas','acct');
@@ -1311,13 +1373,16 @@ async function generatePDF(){
     }else{doc.setFillColor(250,248,245);doc.rect(0,0,pw,ph,'F');doc.setFontSize(11);doc.setTextColor(160,155,148);doc.text('No source document uploaded — stamps only',pw/2,ph/2,{align:'center'});}
     const cc=gv('costCode')||'—',amt=gv('coAmount')||'—',desc=gv('coDescription');
     const scope=scopeVal==='in'?'In scope':'Out of scope',sc=scopeVal==='in'?[59,109,17]:[163,45,45];
-    const sw=215,pmSH=sigData?175:152;
-    drawStamp(doc,pw-sw-16,16,sw,pmSH,{title:'PM APPROVAL',rows:[['PROJECT',proj],['VENDOR',vendor],['CE #',ce],['COST CODE',cc],['SCOPE',scope,sc],['DOC TYPE',docType||'—'],['AMOUNT',amt]]},{ll:'APPROVED BY',lv:pm,rl:'DATE',rv:fmtD(pmDate)},[192,41,26],sigData);
     const cn=gv('checkNumber')||'—',ca=gv('checkAmount')||'—',an=gv('acctName')||'—',notes=gv('acctNotes');
     const al=acctApproval==='approved'?'Approved':acctApproval==='pending'?'Pending':acctApproval==='hold'?'On hold':'—';
     const ac=acctApproval==='approved'?[59,109,17]:acctApproval==='pending'?[133,79,11]:acctApproval==='hold'?[163,45,45]:[30,30,30];
-    const aSH=(notes?20:0)+(acctSigData?175:152);
-    drawStamp(doc,pw-sw-16,16+pmSH+10,sw,aSH,{title:'ACCOUNTING',rows:[['CHECK #',cn],['CHECK DATE',fmtD(document.getElementById('checkDate').value)],['AMOUNT PAID',ca],['STATUS',al,ac]],notes:notes||null},{ll:'PROCESSED BY',lv:an,rl:'DATE',rv:fmtD(document.getElementById('acctDate').value)},[24,95,165],acctSigData);
+    // Stamp is anchored to the lower-left corner of the attached PDF page,
+    // stacked bottom-up: Accounting box sits flush with the bottom margin,
+    // PM Approval box sits directly above it.
+    const sw=215,pmSH=sigData?175:152,aSH=(notes?20:0)+(acctSigData?175:152);
+    const sx=16,stampBottom=ph-16,accountingY=stampBottom-aSH,pmY=accountingY-10-pmSH;
+    drawStamp(doc,sx,pmY,sw,pmSH,{title:'PM APPROVAL',rows:[['PROJECT',proj],['VENDOR',vendor],['CE #',ce],['COST CODE',cc],['SCOPE',scope,sc],['DOC TYPE',docType||'—'],['AMOUNT',amt]]},{ll:'APPROVED BY',lv:pm,rl:'DATE',rv:fmtD(pmDate)},[192,41,26],sigData);
+    drawStamp(doc,sx,accountingY,sw,aSH,{title:'ACCOUNTING',rows:[['CHECK #',cn],['CHECK DATE',fmtD(document.getElementById('checkDate').value)],['AMOUNT PAID',ca],['STATUS',al,ac]],notes:notes||null},{ll:'PROCESSED BY',lv:an,rl:'DATE',rv:fmtD(document.getElementById('acctDate').value)},[24,95,165],acctSigData);
     const filename=fname();doc.save(filename);
 
     // Log to cloud tracker
