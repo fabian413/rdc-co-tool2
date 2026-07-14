@@ -215,7 +215,7 @@ async function processIntakeDocument(payload, env) {
               '"pay_app" — a formal Application and Certificate for Payment (AIA G702/G703-style). It is titled something like "APPLICATION AND CERTIFICATE FOR PAYMENT" or "CONTRACTOR\'S APPLICATION FOR PAYMENT", has an "APPLICATION #" and "PERIOD TO" field, and a set of numbered summary lines such as ORIGINAL CONTRACT SUM, NET CHANGE BY CHANGE ORDERS, CONTRACT SUM TO DATE, TOTAL COMPLETED & STORED TO DATE, RETAINAGE, TOTAL EARNED LESS RETAINAGE, LESS PREVIOUS CERTIFICATES FOR PAYMENT, CURRENT PAYMENT DUE, and BALANCE TO FINISH. It is usually accompanied by a "CONTINUATION SHEET" / Schedule of Values table (columns for scheduled value, work completed this period, materials stored, % complete, retainage). It represents a periodic progress-billing request tied to percent of work completed, and often includes a Contractor certification and/or Architect\'s Certificate for Payment.\n\n' +
               '"invoice" — a simple vendor bill for goods or services rendered: vendor letterhead/logo, an invoice number, line items or a description of work, and a total/amount due. It does NOT have the contract-sum/retainage/percent-complete structure described above.\n\n' +
               '"unknown" — anything else. This includes a Change Order / Change Order Request or Contract Change Order (a document requesting authorization for a scope and cost change — it has fields like vendor, CO/CE number, cost code, description of change, and a dollar amount, but lacks the pay-application numbered summary lines and Schedule of Values). It also includes non-document images such as email signature logos, or anything illegible/unrelated. If the document looks like a Change Order rather than a true pay application, classify it as "unknown" and say so in notes — do not classify a Change Order as "pay_app" just because it involves billing.\n\n' +
-              'Extract: the vendor/subcontractor name, the project name if stated, and the total amount currently owed. For a pay_app, use the "CURRENT PAYMENT DUE" line — the amount actually being requested for this billing period, not the contract sum or total completed to date. For an invoice, use its total/amount due. If a field cannot be determined, use null. Rate your confidence as low, medium, or high, and use notes to flag anything the reviewer should double-check (including if you suspect this is actually a Change Order).',
+              'Extract: the vendor/subcontractor name, the project name if stated, and the total amount currently owed. For a pay_app, use the "CURRENT PAYMENT DUE" line — the amount actually being requested for this billing period, not the contract sum or total completed to date. For an invoice, use its total/amount due. Also extract a brief description of the work or services being billed (a short phrase, e.g. "Ceiling repair — Unit 204" or "Electrical rough-in"), and a best-effort guess at scope: "in" if this appears to be billing for work within the vendor\'s original contracted scope (a normal invoice or pay app against an existing contract), "out" if it appears to be additional/extra work beyond the original contract (e.g. the document itself looks like a change order, or explicitly references a change/extra/additional work), or null if you cannot tell from the document alone — a human will confirm this. If a field cannot be determined, use null. Rate your confidence as low, medium, or high, and use notes to flag anything the reviewer should double-check (including if you suspect this is actually a Change Order).',
           },
         ],
       }],
@@ -229,10 +229,12 @@ async function processIntakeDocument(payload, env) {
               vendor: { type: ['string', 'null'] },
               project: { type: ['string', 'null'] },
               amount: { type: ['string', 'null'] },
+              description: { type: ['string', 'null'], description: 'Brief description of the work/services billed' },
+              scope: { type: ['string', 'null'], enum: ['in', 'out', null], description: 'Best-effort guess: "in" contracted scope, "out" additional/change work, null if undeterminable' },
               confidence: { type: 'string', enum: ['low', 'medium', 'high'] },
               notes: { type: ['string', 'null'], description: 'Anything the reviewer should double-check' },
             },
-            required: ['docType', 'vendor', 'project', 'amount', 'confidence', 'notes'],
+            required: ['docType', 'vendor', 'project', 'amount', 'description', 'scope', 'confidence', 'notes'],
             additionalProperties: false,
           },
         },
@@ -270,6 +272,8 @@ async function processIntakeDocument(payload, env) {
     vendor: extracted.vendor,
     project: extracted.project,
     amount: extracted.amount,
+    description: extracted.description,
+    scope: extracted.scope,
     confidence: extracted.confidence,
     notes: extracted.notes,
     status: 'needs_review',

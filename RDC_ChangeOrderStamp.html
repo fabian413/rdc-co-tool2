@@ -217,7 +217,7 @@ header{background:var(--charcoal);padding:0 1.5rem;display:flex;align-items:cent
 .modal-title{font-size:16px;font-weight:600;margin-bottom:1rem;padding-right:2rem;}
 .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--charcoal);color:#F5F3EF;padding:9px 18px;border-radius:var(--r);font-size:13px;opacity:0;transition:opacity .25s;pointer-events:none;z-index:9999;white-space:nowrap;}
 .toast.show{opacity:1;}
-.inv-row{background:var(--card);border:.5px solid var(--border-mid);border-radius:var(--r);padding:12px 14px;margin-bottom:8px;display:grid;grid-template-columns:1fr 1fr 1fr 1fr auto;gap:10px;align-items:center;}
+.inv-row{background:var(--card);border:.5px solid var(--border-mid);border-radius:var(--r);padding:12px 14px;margin-bottom:8px;display:grid;grid-template-columns:1fr 1fr 1fr 1fr 1fr auto;gap:10px;align-items:center;}
 @media(max-width:900px){.inv-row{grid-template-columns:1fr 1fr;}}
 .inv-row input,.inv-row select{width:100%;font-size:12.5px;padding:6px 8px;border-radius:6px;border:.5px solid var(--border-mid);background:var(--bg);color:var(--text);outline:none;font-family:inherit;}
 .inv-row input:focus,.inv-row select:focus{border-color:var(--red);}
@@ -392,6 +392,9 @@ header{background:var(--charcoal);padding:0 1.5rem;display:flex;align-items:cent
       <button class="tbar-btn blue-btn" onclick="openAddCO()"><i class="ti ti-plus"></i> Add pending CO</button>
       <select class="tbar-select" id="filterPM" onchange="renderTracker()"><option value="">All PMs</option></select>
       <select class="tbar-select" id="filterStatus" onchange="renderTracker()"><option value="">All statuses</option><option value="pending">Pending</option><option value="approved">Accounting</option></select>
+      <select class="tbar-select" id="filterSource" onchange="renderTracker()"><option value="">All sources</option><option value="co">Change Order</option><option value="invoice">Invoice</option><option value="payapp">Pay App</option></select>
+      <select class="tbar-select" id="filterDocType" onchange="renderTracker()"><option value="">All doc types</option><option value="CCO">CCO</option><option value="PCO">PCO</option><option value="SC">SC</option><option value="PO">PO</option><option value="None">None</option></select>
+      <select class="tbar-select" id="filterProject" onchange="renderTracker()"><option value="">All projects</option></select>
       <input class="tbar-search" type="text" id="trackerSearch" placeholder="Search CE #, vendor, PM…" oninput="renderTracker()"/>
       <button class="tbar-btn" onclick="clearTracker()"><i class="ti ti-trash"></i> Clear all</button>
     </div>
@@ -1038,12 +1041,27 @@ function getAllProjectNames(){
   const all=Object.values(cloudData.projects||{}).flat();
   return[...new Set(all.map(p=>p.name))].sort();
 }
+// Reverse-lookup which PM a project belongs to, using each PM's own
+// project list (cloudData.projects is keyed by PM name).
+function projectToPMName(projectName){
+  if(!projectName)return'';
+  for(const[pmName,projs] of Object.entries(cloudData.projects||{})){
+    if((projs||[]).some(p=>p.name===projectName))return pmName;
+  }
+  return'';
+}
 function docTypeLabel(t){return t==='pay_app'?'Pay App':t==='invoice'?'Invoice':'Unknown';}
 function updateInvoiceField(id,field,val){
   const inv=(cloudData.pendingInvoices||[]).find(e=>e.id===id);
   if(!inv)return;
   inv[field]=val;
+  // Auto-fill PM from whichever PM has this project assigned to them.
+  if(field==='project'){
+    const matchedPM=projectToPMName(val);
+    if(matchedPM)inv.pm=matchedPM;
+  }
   scheduleSave();
+  renderQueue('invoices');renderQueue('payapp');
 }
 // Accounting's action here is NOT a PM approval — it just confirms the
 // extracted data and assigns Project + PM, then routes the document into
@@ -1066,9 +1084,9 @@ function sendInvoiceToPM(id){
     amount:inv.amount,
     costCode:'',
     docType:'',
-    scope:'',
+    scope:inv.scope==='in'||inv.scope==='out'?inv.scope:'',
     pm:inv.pm,
-    description:(inv.docType==='pay_app'?'Pay App':'Invoice')+(inv.filename?': '+inv.filename:''),
+    description:inv.description||((inv.docType==='pay_app'?'Pay App':'Invoice')+(inv.filename?': '+inv.filename:'')),
     status:'pending',
     source:inv.docType==='pay_app'?'payapp':'invoice',
     fileKey:inv.fileKey||'',
@@ -1179,9 +1197,15 @@ function renderQueue(kind){
         <option value="">— Select —</option>
         ${PMS.map(x=>`<option value="${x.name}"${e.pm===x.name?' selected':''}>${x.name}</option>`).join('')}
       </select></div>
+      <div><span class="inv-lbl">Scope</span><select ${isReviewed?'disabled':''} onchange="updateInvoiceField('${e.id}','scope',this.value)">
+        <option value=""${!e.scope?' selected':''}>—</option>
+        <option value="in"${e.scope==='in'?' selected':''}>In scope</option>
+        <option value="out"${e.scope==='out'?' selected':''}>Out of scope</option>
+      </select></div>
       <div class="inv-actions">
         ${isReviewed?'':`<button class="tbar-btn blue-btn" onclick="sendInvoiceToPM('${e.id}')"><i class="ti ti-send"></i> Send to PM</button><button class="icon-btn" onclick="rejectInvoice('${e.id}')" title="Reject"><i class="ti ti-x"></i></button>`}
       </div>
+      <div style="grid-column:1/-1"><span class="inv-lbl">Description of work</span><input type="text" value="${(e.description||'').replace(/"/g,'&quot;')}" ${isReviewed?'disabled':''} onchange="updateInvoiceField('${e.id}','description',this.value)" placeholder="Brief description of work"/></div>
     </div>`;
   }).join('')+`<datalist id="${cfg.datalistId}">${projOpts.map(x=>`<option value="${x}">`).join('')}</datalist>`;
   updateTabBadges();
@@ -1192,6 +1216,8 @@ function renderTracker(){
   const allTracker=getTracker();
   const search=(document.getElementById('trackerSearch').value||'').toLowerCase();
   const filterStatus=document.getElementById('filterStatus').value;
+  const filterSourceVal=document.getElementById('filterSource').value;
+  const filterDocTypeVal=document.getElementById('filterDocType').value;
 
   // Populate PM filter dropdown
   const pmSel=document.getElementById('filterPM');
@@ -1200,10 +1226,25 @@ function renderTracker(){
   pmSel.innerHTML='<option value="">All PMs</option>'+pmNames.map(p=>`<option value="${p}"${p===curPMFilter?' selected':''}>${p}</option>`).join('');
   const filterPMVal=pmSel.value;
 
+  // Populate Project filter dropdown
+  const projSel=document.getElementById('filterProject');
+  const curProjFilter=projSel.value;
+  const projNames=[...new Set(allTracker.map(e=>e.project).filter(Boolean))].sort();
+  projSel.innerHTML='<option value="">All projects</option>'+projNames.map(p=>`<option value="${p}"${p===curProjFilter?' selected':''}>${p}</option>`).join('');
+  const filterProjectVal=projSel.value;
+
   // All team COs visible to everyone
   const filtered=allTracker.filter(e=>{
     if(filterPMVal&&e.pm!==filterPMVal)return false;
     if(filterStatus&&e.status!==filterStatus)return false;
+    if(filterProjectVal&&e.project!==filterProjectVal)return false;
+    if(filterDocTypeVal&&e.docType!==filterDocTypeVal)return false;
+    if(filterSourceVal){
+      const isInvoiceOrigin=e.source==='invoice'||e.source==='payapp';
+      if(filterSourceVal==='co'&&isInvoiceOrigin)return false;
+      if(filterSourceVal==='invoice'&&e.source!=='invoice')return false;
+      if(filterSourceVal==='payapp'&&e.source!=='payapp')return false;
+    }
     if(search&&![e.project,e.vendor,e.ceNumber,e.description,e.pm].filter(Boolean).join(' ').toLowerCase().includes(search))return false;
     return true;
   });
