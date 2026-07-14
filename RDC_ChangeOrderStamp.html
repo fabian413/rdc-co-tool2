@@ -1353,20 +1353,33 @@ function prefillStamp(id){
   const e=getTracker().find(x=>x.id===id);if(!e)return;
   switchTab('stamp');
   setTimeout(async()=>{
-    if(e.project)document.getElementById('projectName').value=e.project;
-    if(e.vendor)document.getElementById('vendorName').value=e.vendor;
-    if(e.ceNumber)document.getElementById('ceNumber').value=e.ceNumber;
-    if(e.amount)document.getElementById('coAmount').value=e.amount;
-    if(e.costCode)document.getElementById('costCode').value=e.costCode;
-    if(e.description)document.getElementById('coDescription').value=e.description;
-    if(e.scope)setScope(e.scope);if(e.docType)setDoc(e.docType);
+    // Reset every field unconditionally first — otherwise a value left over
+    // from whichever entry was stamped previously (e.g. a CE# or Doc Type
+    // that doesn't apply to an invoice with no CE#) silently carries over.
+    document.getElementById('projectName').value=e.project||'';
+    document.getElementById('vendorName').value=e.vendor||'';
+    document.getElementById('ceNumber').value=e.ceNumber||'';
+    document.getElementById('coAmount').value=e.amount||'';
+    document.getElementById('costCode').value=e.costCode||'';
+    document.getElementById('coDescription').value=e.description||'';
+    setScope(e.scope||null);setDoc(e.docType||null);
     document.getElementById('approvalDate').valueAsDate=new Date();
+    uploadedFile=null;
+    document.getElementById('uploadLabel').textContent='Click to upload a change order PDF';
+    document.getElementById('uploadZone').style.borderColor='';
+    document.getElementById('autoFillBtn').style.display='none';
+    const genBtn=document.getElementById('generateBtn');
     let attached=false;
     if(e.pdfData&&e.pdfName){
       try{const b=atob(e.pdfData),ab=new ArrayBuffer(b.length),ia=new Uint8Array(ab);for(let i=0;i<b.length;i++)ia[i]=b.charCodeAt(i);uploadedFile=new File([ab],e.pdfName,{type:'application/pdf'});document.getElementById('uploadLabel').textContent=e.pdfName+' (from tracker)';document.getElementById('uploadZone').style.borderColor='var(--green)';document.getElementById('autoFillBtn').style.display='flex';attached=true;}catch(ex){}
     }else if(e.fileKey){
       // Invoice/pay-app entries store their original file in R2, not as
       // local pdfData — fetch it so the stamp lands on the real document.
+      // Lock the Generate button while this is in flight: without it, a
+      // quick click on Generate would fire before uploadedFile is set and
+      // silently fall back to a blank "no source document" page.
+      genBtn.disabled=true;genBtn.style.opacity='.6';
+      document.getElementById('uploadLabel').textContent='Loading attached PDF…';
       try{
         const res=await fetch(CLAUDE_PROXY_URL+'/file/'+encodeURIComponent(e.fileKey));
         if(res.ok){
@@ -1377,8 +1390,13 @@ function prefillStamp(id){
           document.getElementById('uploadZone').style.borderColor='var(--green)';
           document.getElementById('autoFillBtn').style.display='flex';
           attached=true;
+        }else{
+          document.getElementById('uploadLabel').textContent='Click to upload a change order PDF';
         }
-      }catch(ex){}
+      }catch(ex){
+        document.getElementById('uploadLabel').textContent='Click to upload a change order PDF';
+      }
+      genBtn.disabled=false;genBtn.style.opacity='';
     }
     updatePreview();toast(attached?'Pre-filled with attached PDF — sign and download':'Pre-filled — attach PDF, sign, and download');
   },100);
