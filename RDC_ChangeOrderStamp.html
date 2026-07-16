@@ -766,6 +766,13 @@ const DRAFT_PREFIX='rdc_draft_v3_';
 let currentPM=null;
 let scopeVal=null,docType=null,acctApproval=null,uploadedFile=null,sigData=null,acctSigData=null;
 let activeProcoreId=null,activeDocusignId=null;
+// Which tracker entry (if any) the Stamp form was pre-filled from. When set,
+// generatePDF() updates this exact entry instead of re-deriving one by
+// matching project+ceNumber+vendor — that fuzzy match breaks (and silently
+// creates a duplicate) whenever the project field gets corrected while
+// stamping, which is common for invoice-origin entries with AI-guessed
+// project names.
+let activeStampEntryId=null;
 
 // ── PROJECTS ──────────────────────────────────────────────────
 function pmProjKey(){return currentPM?currentPM.name:'shared';}
@@ -986,7 +993,7 @@ function clearAll(){
   ['vendorName','ceNumber','costCode','coAmount','coDescription','checkNumber','checkAmount','acctNotes','acctName'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('projectName').value='';
   document.getElementById('approvalDate').valueAsDate=new Date();document.getElementById('acctDate').valueAsDate=new Date();document.getElementById('checkDate').value='';
-  scopeVal=null;docType=null;acctApproval=null;
+  scopeVal=null;docType=null;acctApproval=null;activeStampEntryId=null;
   DOC_TYPES.forEach(d=>document.getElementById('doc'+d.id).className='dbtn');
   document.getElementById('scopeIn').className='tbtn';document.getElementById('scopeOut').className='tbtn';
   ['acctApproved','acctPending','acctHold'].forEach(id=>document.getElementById(id).className='tbtn');
@@ -1400,6 +1407,7 @@ function clearCardPdf(id){const t=getTracker();const i=t.findIndex(e=>e.id===id)
 // Pre-fill stamp
 function prefillStamp(id){
   const e=getTracker().find(x=>x.id===id);if(!e)return;
+  activeStampEntryId=id;
   switchTab('stamp');
   setTimeout(async()=>{
     // Reset every field unconditionally first — otherwise a value left over
@@ -1513,11 +1521,19 @@ async function generatePDF(){
     drawStamp(doc,sx,accountingY,sw,aSH,{title:'ACCOUNTING',rows:[['CHECK #',cn],['CHECK DATE',fmtD(document.getElementById('checkDate').value)],['AMOUNT PAID',ca],['STATUS',al,ac]],notes:notes||null},{ll:'PROCESSED BY',lv:an,rl:'DATE',rv:fmtD(document.getElementById('acctDate').value)},[24,95,165],acctSigData);
     const filename=fname();doc.save(filename);
 
-    // Log to cloud tracker
-    const existingEntry=getTracker().find(e=>e.project===proj&&e.ceNumber===ce&&e.vendor===vendor);
+    // Log to cloud tracker. If we know exactly which entry this stamp came
+    // from (via "Stamp now" on a tracker card), update that entry directly
+    // — matching by project+ceNumber+vendor alone breaks (and creates a
+    // duplicate) whenever the project field gets corrected while stamping,
+    // which happens often for invoice-origin entries with AI-guessed
+    // project names.
+    const existingEntry=activeStampEntryId
+      ?getTracker().find(e=>e.id===activeStampEntryId)
+      :getTracker().find(e=>e.project===proj&&e.ceNumber===ce&&e.vendor===vendor);
     const entryId=existingEntry?.id||genId();
-    const entry={id:entryId,project:proj,vendor,ceNumber:ce,amount:amt,scope:scopeVal,docType,costCode:cc,description:desc,pm,approvalDate:fmtD(pmDate),checkNumber:cn,checkDate:fmtD(document.getElementById('checkDate').value),checkAmount:ca,acctNotes:notes,acctName:an,acctDate:fmtD(document.getElementById('acctDate').value),status:'pending',source:'stamp',loggedAt:existingEntry?.loggedAt||new Date().toISOString(),filename,stepStamped:true,stepProcore:existingEntry?.stepProcore||false,stepDocusign:existingEntry?.stepDocusign||false,procoreCE:existingEntry?.procoreCE||'',procoreType:existingEntry?.procoreType||'',docusignID:existingEntry?.docusignID||''};
+    const entry={id:entryId,project:proj,vendor,ceNumber:ce,amount:amt,scope:scopeVal,docType,costCode:cc,description:desc,pm,approvalDate:fmtD(pmDate),checkNumber:cn,checkDate:fmtD(document.getElementById('checkDate').value),checkAmount:ca,acctNotes:notes,acctName:an,acctDate:fmtD(document.getElementById('acctDate').value),status:'pending',source:existingEntry?.source||'stamp',loggedAt:existingEntry?.loggedAt||new Date().toISOString(),filename,stepStamped:true,stepProcore:existingEntry?.stepProcore||false,stepDocusign:existingEntry?.stepDocusign||false,procoreCE:existingEntry?.procoreCE||'',procoreType:existingEntry?.procoreType||'',docusignID:existingEntry?.docusignID||'',fileKey:existingEntry?.fileKey||'',sourceInvoiceId:existingEntry?.sourceInvoiceId||''};
     logCO(entry);saveDraft();
+    activeStampEntryId=null;
 
     setTimeout(()=>{
       const subject=encodeURIComponent(`PM-Approved Change Order – ${proj} / ${vendor} / ${ce}`);
