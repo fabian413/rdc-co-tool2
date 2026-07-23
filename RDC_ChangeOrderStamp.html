@@ -1326,11 +1326,7 @@ function renderQueue(kind){
         <option value="">— Select —</option>
         ${PMS.map(x=>`<option value="${x.name}"${e.pm===x.name?' selected':''}>${x.name}</option>`).join('')}
       </select></div>
-      <div><span class="inv-lbl">Scope</span><select ${isReviewed?'disabled':''} onchange="updateInvoiceField('${e.id}','scope',this.value)">
-        <option value=""${!e.scope?' selected':''}>—</option>
-        <option value="in"${e.scope==='in'?' selected':''}>In scope</option>
-        <option value="out"${e.scope==='out'?' selected':''}>Out of scope</option>
-      </select></div>
+      <div><span class="inv-lbl">Scope</span><div style="padding:7px 0;font-size:13px;color:var(--muted)">${e.scope==='in'?'AI guess: In scope':e.scope==='out'?'AI guess: Out of scope':'—'} <span style="font-size:11px">(PM decides)</span></div></div>
       <div class="inv-actions">
         ${isReviewed?'':`<button class="tbar-btn blue-btn" onclick="sendInvoiceToPM('${e.id}')"><i class="ti ti-send"></i> Send to PM</button><button class="icon-btn" onclick="rejectInvoice('${e.id}')" title="Reject"><i class="ti ti-x"></i></button>`}
       </div>
