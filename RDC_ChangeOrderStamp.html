@@ -644,6 +644,13 @@ async function loadCloud(){
 async function saveCloud(){
   setSyncStatus('syncing','Saving…');
   const maxAttempts=6;
+  // JSONBin throttles under bursts of requests using BOTH 429 and 403
+  // (403 shows up here specifically, not just the "textbook" 429), so both
+  // get the same long backoff. Any other unexpected error also backs off
+  // before retrying instead of hammering the API again immediately — the
+  // previous version had no delay at all in that fallback path, which made
+  // a burst of throttling worse instead of easing off it.
+  const isThrottled=(status)=>status===429||status===403;
   const rateLimitBackoff=(attempt)=>2000+Math.random()*2000*attempt;
   for(let attempt=1;attempt<=maxAttempts;attempt++){
     try{
@@ -653,7 +660,7 @@ async function saveCloud(){
       if(!dirtyKeys.length){setSyncStatus('synced','Saved');return;}
 
       const freshRes=await fetch(BIN_URL+'/latest',{headers:HEADERS});
-      if(freshRes.status===429){await new Promise((r)=>setTimeout(r,rateLimitBackoff(attempt)));continue;}
+      if(isThrottled(freshRes.status)){await new Promise((r)=>setTimeout(r,rateLimitBackoff(attempt)));continue;}
       if(!freshRes.ok)throw new Error('HTTP '+freshRes.status);
       const fresh=await freshRes.json();
 
@@ -661,12 +668,12 @@ async function saveCloud(){
       dirtyKeys.forEach((k)=>{merged[k]=cloudData[k];});
 
       const putRes=await fetch(BIN_URL,{method:'PUT',headers:HEADERS,body:JSON.stringify(merged)});
-      if(putRes.status===429){await new Promise((r)=>setTimeout(r,rateLimitBackoff(attempt)));continue;}
+      if(isThrottled(putRes.status)){await new Promise((r)=>setTimeout(r,rateLimitBackoff(attempt)));continue;}
       if(!putRes.ok)throw new Error('HTTP '+putRes.status);
 
       const verifyRes=await fetch(BIN_URL+'/latest',{headers:HEADERS});
-      if(verifyRes.status===429){
-        // Trust the successful PUT rather than adding more load while rate limited.
+      if(isThrottled(verifyRes.status)){
+        // Trust the successful PUT rather than adding more load while throttled.
         cloudData=merged;snapshotCloudData();setSyncStatus('synced','Saved');return;
       }
       if(verifyRes.ok){
@@ -687,6 +694,7 @@ async function saveCloud(){
         toast('Cloud save failed — changes may not persist');
         return;
       }
+      await new Promise((resolve)=>setTimeout(resolve,rateLimitBackoff(attempt)));
     }
   }
 }

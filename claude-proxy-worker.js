@@ -304,11 +304,13 @@ async function processIntakeDocument(payload, env) {
 // that our record actually stuck, and retry with jittered backoff if a
 // concurrent write clobbered it.
 //
-// JSONBin also rate-limits (HTTP 429) under bursts of requests — each
-// append here already costs up to 3 requests (read, write, verify), so a
-// handful of attachments arriving close together can trip it. A 429 gets
-// a much longer backoff than a race-conflict retry, since it means "slow
-// down", not "someone else just won — try again immediately".
+// JSONBin also throttles under bursts of requests — each append here
+// already costs up to 3 requests (read, write, verify), so a handful of
+// attachments arriving close together can trip it. This bin has been
+// observed returning BOTH 429 and 403 for throttling (not just the
+// "textbook" 429), so both get a much longer backoff than a race-conflict
+// retry, since it means "slow down", not "someone else just won — try
+// again immediately".
 async function appendPendingInvoice(env, record) {
   const binUrl = `https://api.jsonbin.io/v3/b/${env.JSONBIN_BIN_ID}`;
   const headers = {
@@ -317,33 +319,39 @@ async function appendPendingInvoice(env, record) {
     'X-Bin-Meta': 'false',
   };
   const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+  const isThrottled = (status) => status === 429 || status === 403;
   const rateLimitBackoff = (attempt) => 2000 + Math.random() * 2000 * attempt;
 
   const maxAttempts = 5;
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-    const getRes = await fetch(binUrl + '/latest', { headers });
-    if (getRes.status === 429) { await sleep(rateLimitBackoff(attempt)); continue; }
-    if (!getRes.ok) throw new Error('JSONBin read failed: HTTP ' + getRes.status);
-    const data = await getRes.json();
-    if (!data.pendingInvoices) data.pendingInvoices = [];
+    try {
+      const getRes = await fetch(binUrl + '/latest', { headers });
+      if (isThrottled(getRes.status)) { await sleep(rateLimitBackoff(attempt)); continue; }
+      if (!getRes.ok) throw new Error('JSONBin read failed: HTTP ' + getRes.status);
+      const data = await getRes.json();
+      if (!data.pendingInvoices) data.pendingInvoices = [];
 
-    if (data.pendingInvoices.some((r) => r.id === record.id)) return;
-    data.pendingInvoices.push(record);
+      if (data.pendingInvoices.some((r) => r.id === record.id)) return;
+      data.pendingInvoices.push(record);
 
-    const putRes = await fetch(binUrl, { method: 'PUT', headers, body: JSON.stringify(data) });
-    if (putRes.status === 429) { await sleep(rateLimitBackoff(attempt)); continue; }
-    if (!putRes.ok) throw new Error('JSONBin write failed: HTTP ' + putRes.status);
+      const putRes = await fetch(binUrl, { method: 'PUT', headers, body: JSON.stringify(data) });
+      if (isThrottled(putRes.status)) { await sleep(rateLimitBackoff(attempt)); continue; }
+      if (!putRes.ok) throw new Error('JSONBin write failed: HTTP ' + putRes.status);
 
-    // Re-read to confirm our record actually survived (a concurrent writer
-    // may have PUT its own stale copy right after ours and clobbered it).
-    const verifyRes = await fetch(binUrl + '/latest', { headers });
-    if (verifyRes.status === 429) return; // trust the successful PUT rather than adding more load
-    if (verifyRes.ok) {
-      const verifyData = await verifyRes.json();
-      if ((verifyData.pendingInvoices || []).some((r) => r.id === record.id)) return;
+      // Re-read to confirm our record actually survived (a concurrent writer
+      // may have PUT its own stale copy right after ours and clobbered it).
+      const verifyRes = await fetch(binUrl + '/latest', { headers });
+      if (isThrottled(verifyRes.status)) return; // trust the successful PUT rather than adding more load
+      if (verifyRes.ok) {
+        const verifyData = await verifyRes.json();
+        if ((verifyData.pendingInvoices || []).some((r) => r.id === record.id)) return;
+      }
+
+      await sleep(150 + Math.random() * 300 * attempt);
+    } catch (e) {
+      if (attempt === maxAttempts) throw e;
+      await sleep(rateLimitBackoff(attempt));
     }
-
-    await sleep(150 + Math.random() * 300 * attempt);
   }
-  throw new Error('Failed to persist record after ' + maxAttempts + ' attempts (JSONBin rate limit or write conflicts)');
+  throw new Error('Failed to persist record after ' + maxAttempts + ' attempts (JSONBin throttling or write conflicts)');
 }
