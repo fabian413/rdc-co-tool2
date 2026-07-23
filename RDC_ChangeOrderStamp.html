@@ -1032,6 +1032,22 @@ function clearAll(){
 
 // ── TRACKER DATA ──────────────────────────────────────────────
 function getTracker(){return cloudData.tracker||[];}
+// Best-effort duplicate check before creating a new tracker entry: same
+// vendor (case/whitespace-insensitive) and same dollar amount (ignoring
+// formatting) as an entry that already exists. Not a hard block — some
+// vendors genuinely bill the same amount twice — just a confirm prompt so
+// a bug or accidental double-click doesn't silently create a duplicate
+// the way the project-correction bug did.
+function findLikelyDuplicateTrackerEntry(vendor,amount,excludeId){
+  const normVendor=(vendor||'').trim().toLowerCase();
+  const normAmount=(amount||'').replace(/[^0-9.]/g,'');
+  if(!normVendor||!normAmount)return null;
+  return getTracker().find(e=>
+    e.id!==excludeId&&
+    (e.vendor||'').trim().toLowerCase()===normVendor&&
+    (e.amount||'').replace(/[^0-9.]/g,'')===normAmount
+  );
+}
 function logCO(entry){
   const t=getTracker();const i=t.findIndex(e=>e.id===entry.id);
   if(i>=0)t[i]=entry;else t.unshift(entry);
@@ -1111,7 +1127,10 @@ function submitAddCO(){
   const proj=document.getElementById('addco-project').value;
   const vendor=document.getElementById('addco-vendor').value.trim();
   if(!proj||!vendor){toast('Project and vendor are required');return;}
-  const entry={id:genId(),project:proj,vendor,ceNumber:document.getElementById('addco-ce').value.trim(),amount:document.getElementById('addco-amount').value.trim(),costCode:document.getElementById('addco-costcode').value.trim(),docType:document.getElementById('addco-doctype').value,scope:document.getElementById('addco-scope').value,pm:document.getElementById('addco-pm').value||currentPM?.name||'',description:document.getElementById('addco-desc').value.trim(),status:'pending',source:'manual',loggedAt:new Date().toISOString(),stepStamped:false,stepProcore:false,stepDocusign:false};
+  const amt=document.getElementById('addco-amount').value.trim();
+  const dupe=findLikelyDuplicateTrackerEntry(vendor,amt,null);
+  if(dupe&&!confirm(`A tracker entry for ${vendor} at ${amt||'this amount'} already exists (project: ${dupe.project||'—'}). Add another anyway?`))return;
+  const entry={id:genId(),project:proj,vendor,ceNumber:document.getElementById('addco-ce').value.trim(),amount:amt,costCode:document.getElementById('addco-costcode').value.trim(),docType:document.getElementById('addco-doctype').value,scope:document.getElementById('addco-scope').value,pm:document.getElementById('addco-pm').value||currentPM?.name||'',description:document.getElementById('addco-desc').value.trim(),status:'pending',source:'manual',loggedAt:new Date().toISOString(),stepStamped:false,stepProcore:false,stepDocusign:false};
   logCO(entry);closeAddCO();renderTracker();toast('CO added to tracker');
 }
 
@@ -1156,6 +1175,8 @@ function sendInvoiceToPM(id){
   const inv=(cloudData.pendingInvoices||[]).find(e=>e.id===id);
   if(!inv)return;
   if(!inv.vendor||!inv.project||!inv.pm){toast('Vendor, project, and PM are required before sending to the PM');return;}
+  const dupe=findLikelyDuplicateTrackerEntry(inv.vendor,inv.amount,null);
+  if(dupe&&!confirm(`A tracker entry for ${inv.vendor} at ${inv.amount||'this amount'} already exists (project: ${dupe.project||'—'}). This may be a duplicate — send to the PM anyway?`))return;
   inv.status='sent_to_pm';
   inv.reviewedBy=currentPM?.name||'';
   inv.reviewedAt=new Date().toISOString();
@@ -1564,6 +1585,13 @@ async function generatePDF(){
     const existingEntry=activeStampEntryId
       ?getTracker().find(e=>e.id===activeStampEntryId)
       :getTracker().find(e=>e.project===proj&&e.ceNumber===ce&&e.vendor===vendor);
+    if(!existingEntry){
+      const dupe=findLikelyDuplicateTrackerEntry(vendor,amt,null);
+      if(dupe&&!confirm(`A tracker entry for ${vendor} at ${amt||'this amount'} already exists (project: ${dupe.project||'—'}). The PDF has already downloaded — add a new tracker entry anyway?`)){
+        btn.disabled=false;btn.innerHTML='<i class="ti ti-file-download"></i> Download &amp; send stamped PDF';
+        return;
+      }
+    }
     const entryId=existingEntry?.id||genId();
     const entry={id:entryId,project:proj,vendor,ceNumber:ce,amount:amt,scope:scopeVal,docType,costCode:cc,description:desc,pm,approvalDate:fmtD(pmDate),checkNumber:cn,checkDate:fmtD(document.getElementById('checkDate').value),checkAmount:ca,acctNotes:notes,acctName:an,acctDate:fmtD(document.getElementById('acctDate').value),status:'pending',source:existingEntry?.source||'stamp',loggedAt:existingEntry?.loggedAt||new Date().toISOString(),filename,stepStamped:true,stepProcore:existingEntry?.stepProcore||false,stepDocusign:existingEntry?.stepDocusign||false,procoreCE:existingEntry?.procoreCE||'',procoreType:existingEntry?.procoreType||'',docusignID:existingEntry?.docusignID||'',fileKey:existingEntry?.fileKey||'',sourceInvoiceId:existingEntry?.sourceInvoiceId||''};
     logCO(entry);saveDraft();
