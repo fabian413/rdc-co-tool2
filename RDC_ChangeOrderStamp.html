@@ -1348,17 +1348,19 @@ function renderTracker(){
   const filterSourceVal=document.getElementById('filterSource').value;
   const filterDocTypeVal=document.getElementById('filterDocType').value;
 
-  // Populate PM filter dropdown. Uses the full PMS roster (not just names
-  // that already have tracker entries) so the default-to-own-name below
-  // always has a matching option, even before a PM has any entries yet.
-  // The dropdown's options don't exist until this first runs, so the
-  // default can't be set any earlier (e.g. at login) — it has to happen
-  // here, gated by trackerPMFilterInitialized so it only applies once per
-  // login and never overrides a filter change the user makes afterward.
+  // Populate PM filter dropdown. A PM is locked to their own name — no
+  // option to view a colleague's invoices/COs — so the dropdown only ever
+  // offers their own name and is disabled. Any other role (e.g. Accounting,
+  // if it's ever given access to this tab) keeps the full roster and free
+  // filtering, defaulting once per login via trackerPMFilterInitialized.
   const pmSel=document.getElementById('filterPM');
-  const curPMFilter=trackerPMFilterInitialized?pmSel.value:(currentPM&&currentPM.role==='pm'?currentPM.name:pmSel.value);
+  const isPMRole=currentPM&&currentPM.role==='pm';
+  const curPMFilter=isPMRole?currentPM.name:(trackerPMFilterInitialized?pmSel.value:pmSel.value);
   trackerPMFilterInitialized=true;
-  pmSel.innerHTML='<option value="">All PMs</option>'+PMS.map(x=>`<option value="${x.name}"${x.name===curPMFilter?' selected':''}>${x.name}</option>`).join('');
+  pmSel.innerHTML=isPMRole
+    ?`<option value="${currentPM.name}" selected>${currentPM.name}</option>`
+    :'<option value="">All PMs</option>'+PMS.map(x=>`<option value="${x.name}"${x.name===curPMFilter?' selected':''}>${x.name}</option>`).join('');
+  pmSel.disabled=!!isPMRole;
   const filterPMVal=pmSel.value;
 
   // Populate Project filter dropdown
