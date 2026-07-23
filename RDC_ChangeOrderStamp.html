@@ -1298,7 +1298,11 @@ function renderQueue(kind){
         ${isApproved?`<span style="color:var(--green,#3B6D11);font-weight:600"><i class="ti ti-circle-check"></i> Approved by ${e.approvedBy||'—'}</span>`:isReviewed?`<span style="color:var(--blue);font-weight:600">Sent to PM by ${e.reviewedBy||'—'}</span>`:''}
       </div>
       <div><span class="inv-lbl">Vendor</span><input type="text" value="${(e.vendor||'').replace(/"/g,'&quot;')}" ${isReviewed?'disabled':''} onchange="updateInvoiceField('${e.id}','vendor',this.value)"/></div>
-      <div><span class="inv-lbl">Project</span><input type="text" list="${cfg.datalistId}" value="${(e.project||'').replace(/"/g,'&quot;')}" ${isReviewed?'disabled':''} onchange="updateInvoiceField('${e.id}','project',this.value)"/></div>
+      <div><span class="inv-lbl">Project</span><select ${isReviewed?'disabled':''} onchange="updateInvoiceField('${e.id}','project',this.value)">
+        <option value="">— Select —</option>
+        ${projOpts.map(p=>`<option value="${p.replace(/"/g,'&quot;')}"${e.project===p?' selected':''}>${p}</option>`).join('')}
+        ${e.project&&!projOpts.includes(e.project)?`<option value="${e.project.replace(/"/g,'&quot;')}" selected>${e.project} (not in project list — please fix)</option>`:''}
+      </select></div>
       <div><span class="inv-lbl">Amount</span><input type="text" value="${(e.amount||'').replace(/"/g,'&quot;')}" ${isReviewed?'disabled':''} onchange="updateInvoiceField('${e.id}','amount',this.value)"/></div>
       <div><span class="inv-lbl">PM</span><select ${isReviewed?'disabled':''} onchange="updateInvoiceField('${e.id}','pm',this.value)">
         <option value="">— Select —</option>
@@ -1314,7 +1318,7 @@ function renderQueue(kind){
       </div>
       <div style="grid-column:1/-1"><span class="inv-lbl">Description of work</span><input type="text" value="${(e.description||'').replace(/"/g,'&quot;')}" ${isReviewed?'disabled':''} onchange="updateInvoiceField('${e.id}','description',this.value)" placeholder="Brief description of work"/></div>
     </div>`;
-  }).join('')+`<datalist id="${cfg.datalistId}">${projOpts.map(x=>`<option value="${x}">`).join('')}</datalist>`;
+  }).join('');
   updateTabBadges();
 }
 
