@@ -793,6 +793,11 @@ let activeProcoreId=null,activeDocusignId=null;
 // stamping, which is common for invoice-origin entries with AI-guessed
 // project names.
 let activeStampEntryId=null;
+// Tracks whether the Invoice Tracker's PM filter has been defaulted yet
+// this login session. False right after login so the first renderTracker()
+// call scopes to the logged-in PM's own name; true afterward so it stops
+// overriding once the user (or code) has touched the dropdown.
+let trackerPMFilterInitialized=false;
 
 // ── PROJECTS ──────────────────────────────────────────────────
 function pmProjKey(){return currentPM?currentPM.name:'shared';}
@@ -892,11 +897,9 @@ async function loginAs(pm){
   }
   document.getElementById('pmName').value=pm.name;
   document.getElementById('stampSub').textContent='Logged in as '+pm.name+'. Fill out details, sign, attach PDF, and download.';
-  // Default the Invoice Tracker to showing only this PM's own entries —
-  // otherwise every PM lands on the full team list and sees each other's
-  // invoices by default. They can still switch to "All PMs" manually.
-  const filterPMEl=document.getElementById('filterPM');
-  if(filterPMEl)filterPMEl.value=pm.name;
+  // Invoice Tracker defaults to this PM's own entries the first time it's
+  // rendered this session — see trackerPMFilterInitialized in renderTracker().
+  trackerPMFilterInitialized=false;
   await loadCloud();
   populateProjectSelects();renderProjectManager();updatePreview();updateTabBadges();
   tryAutoLoadDraft();
@@ -904,7 +907,7 @@ async function loginAs(pm){
 
 function switchPM(){
   if(!confirm('Switch PM? Unsaved changes will be lost.'))return;
-  currentPM=null;clearAll();
+  currentPM=null;clearAll();trackerPMFilterInitialized=false;
   document.getElementById('app').style.display='none';document.getElementById('loginScreen').style.display='flex';
 }
 
@@ -1303,12 +1306,15 @@ function renderTracker(){
   const filterDocTypeVal=document.getElementById('filterDocType').value;
 
   // Populate PM filter dropdown. Uses the full PMS roster (not just names
-  // that already have tracker entries) so that pre-setting this to a
-  // logged-in PM's own name — done at login, to scope their default view
-  // to just their own invoices/COs — always has a matching option, even
-  // before they have any entries yet.
+  // that already have tracker entries) so the default-to-own-name below
+  // always has a matching option, even before a PM has any entries yet.
+  // The dropdown's options don't exist until this first runs, so the
+  // default can't be set any earlier (e.g. at login) — it has to happen
+  // here, gated by trackerPMFilterInitialized so it only applies once per
+  // login and never overrides a filter change the user makes afterward.
   const pmSel=document.getElementById('filterPM');
-  const curPMFilter=pmSel.value;
+  const curPMFilter=trackerPMFilterInitialized?pmSel.value:(currentPM&&currentPM.role==='pm'?currentPM.name:pmSel.value);
+  trackerPMFilterInitialized=true;
   pmSel.innerHTML='<option value="">All PMs</option>'+PMS.map(x=>`<option value="${x.name}"${x.name===curPMFilter?' selected':''}>${x.name}</option>`).join('');
   const filterPMVal=pmSel.value;
 
