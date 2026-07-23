@@ -1154,6 +1154,23 @@ function projectToPMName(projectName){
   }
   return'';
 }
+// Auto-assign PM based on the project's actual owner, for any pending
+// invoice whose project is a known assigned project but has no PM yet.
+// Only fills a blank PM — never overrides one someone already picked.
+// Covers records where the project got corrected (e.g. by a bulk cleanup)
+// without a PM ever being explicitly set, and runs on every render so it
+// also catches new intake records as soon as their project is canonical.
+function autoAssignPMFromProject(){
+  let changed=false;
+  (cloudData.pendingInvoices||[]).forEach(e=>{
+    if(!e.pm&&e.project){
+      const matchedPM=projectToPMName(e.project);
+      if(matchedPM){e.pm=matchedPM;changed=true;}
+    }
+  });
+  if(changed)scheduleSave();
+  return changed;
+}
 function docTypeLabel(t){return t==='pay_app'?'Pay App':t==='invoice'?'Invoice':'Unknown';}
 function updateInvoiceField(id,field,val){
   const inv=(cloudData.pendingInvoices||[]).find(e=>e.id===id);
@@ -1256,6 +1273,7 @@ async function handleUploadFiles(fileList,dropEl){
   }
 }
 function renderQueue(kind){
+  autoAssignPMFromProject();
   const cfg=QUEUE_CONFIG[kind];
   const p=cfg.prefix;
   const all=(cloudData.pendingInvoices||[]).filter(cfg.match);
