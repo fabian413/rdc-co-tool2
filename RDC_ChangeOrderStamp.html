@@ -302,31 +302,7 @@ header{background:var(--charcoal);padding:0 1.5rem;display:flex;align-items:cent
       <div class="field-row single">
         <div class="field">
           <label>PM signature <span style="font-weight:400;color:var(--muted)">(draw below)</span></label>
-          <div class="sig-wrap"><canvas class="sig-canvas" id="sigCanvas" width="700" height="88"></canvas><button class="sig-clear" onclick="clearSig('sigCanvas','pm')">Clear</button></div>
-          <p class="sig-hint"><i class="ti ti-pencil" style="font-size:12px"></i> Sign with mouse or finger</p>
-        </div>
-      </div>
-    </div>
-    <div class="card">
-      <div style="display:flex;align-items:center;margin-bottom:.7rem"><p class="section-label" style="margin-bottom:0"><i class="ti ti-calculator"></i> Accounting processing</p><span class="acct-badge">2nd stamp</span></div>
-      <div class="field-row">
-        <div class="field"><label>Check number</label><input type="text" id="checkNumber" placeholder="e.g. 10482"/></div>
-        <div class="field"><label>Check date</label><input type="date" id="checkDate"/></div>
-      </div>
-      <div class="field-row">
-        <div class="field"><label>Amount paid</label><input type="text" id="checkAmount" placeholder="e.g. $4,250.00"/></div>
-        <div class="field"><label>Accounting approval</label><div class="toggle-row"><button class="tbtn" id="acctApproved" onclick="setAcctApproval('approved')">Approved</button><button class="tbtn" id="acctPending" onclick="setAcctApproval('pending')">Pending</button><button class="tbtn" id="acctHold" onclick="setAcctApproval('hold')">Hold</button></div></div>
-      </div>
-      <div class="field-row single"><div class="field"><label>Additional notes</label><textarea id="acctNotes" placeholder="Retainage, lien waiver, partial payment, etc."></textarea></div></div>
-      <div class="divider"></div>
-      <div class="field-row">
-        <div class="field"><label>Processed by</label><input type="text" id="acctName" placeholder="Accounting staff name"/></div>
-        <div class="field"><label>Processed date</label><input type="date" id="acctDate"/></div>
-      </div>
-      <div class="field-row single">
-        <div class="field">
-          <label>Accounting signature <span style="font-weight:400;color:var(--muted)">(draw below)</span></label>
-          <div class="sig-wrap"><canvas class="sig-canvas" id="acctSigCanvas" width="700" height="88"></canvas><button class="sig-clear" onclick="clearSig('acctSigCanvas','acct')">Clear</button></div>
+          <div class="sig-wrap"><canvas class="sig-canvas" id="sigCanvas" width="700" height="88"></canvas><button class="sig-clear" onclick="clearSig('sigCanvas')">Clear</button></div>
           <p class="sig-hint"><i class="ti ti-pencil" style="font-size:12px"></i> Sign with mouse or finger</p>
         </div>
       </div>
@@ -356,20 +332,6 @@ header{background:var(--charcoal);padding:0 1.5rem;display:flex;align-items:cent
             <div class="sf" style="grid-column:1/-1"><span class="sfl">Amount</span><span class="sfv" id="sp-amount">—</span></div>
           </div>
           <div class="sfoot"><div class="sfootr"><div><div class="sfootl">Approved by</div><div class="sfootv" id="sp-pm">—</div></div><div style="text-align:right"><div class="sfootl">Date</div><div class="sfootv" id="sp-date">—</div></div></div><div class="sig-prev" id="sigPrevWrap" style="display:none"><img id="sigPrevImg" src="" alt="sig"/></div></div>
-        </div>
-      </div>
-      <div class="stamp-card">
-        <p class="section-label" style="font-size:10px;margin-bottom:8px"><i class="ti ti-calculator"></i> Accounting stamp</p>
-        <div class="stamp-box acct">
-          <div class="stamp-hdr"><span class="stitle">Accounting</span><div class="sbrand"><div class="sbrand-ico" style="background:var(--blue)">R</div><span class="sbrand-name" style="color:var(--blue)">Red Door Construction</span></div></div>
-          <div class="sgrid">
-            <div class="sf"><span class="sfl">Check #</span><span class="sfv" id="sa-check">—</span></div>
-            <div class="sf"><span class="sfl">Check date</span><span class="sfv" id="sa-checkdate">—</span></div>
-            <div class="sf"><span class="sfl">Amount paid</span><span class="sfv" id="sa-amount">—</span></div>
-            <div class="sf"><span class="sfl">Status</span><span class="sfv" id="sa-approval">—</span></div>
-          </div>
-          <div class="notes-stamp" id="sa-notes" style="display:none"></div>
-          <div class="sfoot"><div class="sfootr"><div><div class="sfootl">Processed by</div><div class="sfootv" id="sa-name">—</div></div><div style="text-align:right"><div class="sfootl">Date</div><div class="sfootv" id="sa-date">—</div></div></div><div class="sig-prev" id="acctSigPrevWrap" style="display:none"><img id="acctSigPrevImg" src="" alt="sig"/></div></div>
         </div>
       </div>
     </div>
@@ -784,7 +746,7 @@ const ACCOUNTING_USER={name:'Accounting',initials:'AC',color:'#4A4640',role:'acc
 const ACCT_EMAILS=['accounting@reddoorconstruction.com','paola@reddoorconstruction.com'];
 const DRAFT_PREFIX='rdc_draft_v3_';
 let currentPM=null;
-let scopeVal=null,docType=null,acctApproval=null,uploadedFile=null,sigData=null,acctSigData=null;
+let scopeVal=null,docType=null,uploadedFile=null,sigData=null;
 let activeProcoreId=null,activeDocusignId=null;
 // Which tracker entry (if any) the Stamp form was pre-filled from. When set,
 // generatePDF() updates this exact entry instead of re-deriving one by
@@ -925,38 +887,35 @@ function switchTab(t){
 function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),3500);}
 
 // ── SIG PADS ──────────────────────────────────────────────────
-function initSig(id,key){
+function initSig(id){
   const c=document.getElementById(id),ctx=c.getContext('2d');let drawing=false;
   ctx.strokeStyle='#1E1E1E';ctx.lineWidth=2.2;ctx.lineCap='round';ctx.lineJoin='round';
   function pos(e){const r=c.getBoundingClientRect(),sx=c.width/r.width,sy=c.height/r.height,s=e.touches?e.touches[0]:e;return{x:(s.clientX-r.left)*sx,y:(s.clientY-r.top)*sy};}
   c.addEventListener('mousedown',e=>{drawing=true;const p=pos(e);ctx.beginPath();ctx.moveTo(p.x,p.y);});
   c.addEventListener('mousemove',e=>{if(!drawing)return;const p=pos(e);ctx.lineTo(p.x,p.y);ctx.stroke();});
-  c.addEventListener('mouseup',()=>{drawing=false;storeSig(id,key);});
-  c.addEventListener('mouseleave',()=>{if(drawing){drawing=false;storeSig(id,key);}});
+  c.addEventListener('mouseup',()=>{drawing=false;storeSig(id);});
+  c.addEventListener('mouseleave',()=>{if(drawing){drawing=false;storeSig(id);}});
   c.addEventListener('touchstart',e=>{e.preventDefault();drawing=true;const p=pos(e);ctx.beginPath();ctx.moveTo(p.x,p.y);},{passive:false});
   c.addEventListener('touchmove',e=>{e.preventDefault();if(!drawing)return;const p=pos(e);ctx.lineTo(p.x,p.y);ctx.stroke();},{passive:false});
-  c.addEventListener('touchend',()=>{drawing=false;storeSig(id,key);});
+  c.addEventListener('touchend',()=>{drawing=false;storeSig(id);});
 }
-function storeSig(id,key){
+function storeSig(id){
   const d=document.getElementById(id).toDataURL('image/png');
-  if(key==='pm'){sigData=d;document.getElementById('sigPrevImg').src=d;document.getElementById('sigPrevWrap').style.display='block';}
-  else{acctSigData=d;document.getElementById('acctSigPrevImg').src=d;document.getElementById('acctSigPrevWrap').style.display='block';}
+  sigData=d;document.getElementById('sigPrevImg').src=d;document.getElementById('sigPrevWrap').style.display='block';
 }
-function clearSig(id,key){
+function clearSig(id){
   document.getElementById(id).getContext('2d').clearRect(0,0,700,88);
-  if(key==='pm'){sigData=null;document.getElementById('sigPrevWrap').style.display='none';}
-  else{acctSigData=null;document.getElementById('acctSigPrevWrap').style.display='none';}
+  sigData=null;document.getElementById('sigPrevWrap').style.display='none';
 }
-initSig('sigCanvas','pm');initSig('acctSigCanvas','acct');
+initSig('sigCanvas');
 
 // ── TOGGLES ───────────────────────────────────────────────────
 function setScope(v){scopeVal=v;document.getElementById('scopeIn').className='tbtn'+(v==='in'?' a-in':'');document.getElementById('scopeOut').className='tbtn'+(v==='out'?' a-out':'');updatePreview();}
 const DOC_TYPES=[{id:'CCO',v:'CCO'},{id:'PCO',v:'PCO'},{id:'CCOPCO',v:'CCO/PCO'},{id:'SC',v:'SC'},{id:'PO',v:'PO'},{id:'None',v:'None'}];
 function setDoc(v){docType=v;DOC_TYPES.forEach(d=>document.getElementById('doc'+d.id).className='dbtn'+(d.v===v?' active':''));updatePreview();}
-function setAcctApproval(v){acctApproval=v;document.getElementById('acctApproved').className='tbtn'+(v==='approved'?' a-appr':'');document.getElementById('acctPending').className='tbtn'+(v==='pending'?' a-pend':'');document.getElementById('acctHold').className='tbtn'+(v==='hold'?' a-hold':'');updatePreview();}
 function handleUpload(e){const f=e.target.files[0];if(!f)return;uploadedFile=f;document.getElementById('uploadLabel').textContent=f.name;document.getElementById('uploadZone').style.borderColor='var(--red)';document.getElementById('autoFillBtn').style.display='flex';}
 
-['vendorName','ceNumber','costCode','coAmount','coDescription','approvalDate','checkNumber','checkDate','checkAmount','acctNotes','acctName','acctDate'].forEach(id=>{const el=document.getElementById(id);if(el)el.addEventListener('input',updatePreview);});
+['vendorName','ceNumber','costCode','coAmount','coDescription','approvalDate'].forEach(id=>{const el=document.getElementById(id);if(el)el.addEventListener('input',updatePreview);});
 document.getElementById('projectName').addEventListener('change',updatePreview);
 
 // ── HELPERS ───────────────────────────────────────────────────
@@ -982,18 +941,6 @@ function updatePreview(){
   if(scopeVal==='in'){se.textContent='In scope';se.className='sfv c-in';}
   else if(scopeVal==='out'){se.textContent='Out of scope';se.className='sfv c-out';}
   else{se.textContent='—';se.className='sfv';}
-  document.getElementById('sa-check').textContent=gv('checkNumber')||'—';
-  document.getElementById('sa-checkdate').textContent=fmtD(document.getElementById('checkDate').value);
-  document.getElementById('sa-amount').textContent=gv('checkAmount')||'—';
-  document.getElementById('sa-name').textContent=gv('acctName')||'—';
-  document.getElementById('sa-date').textContent=fmtD(document.getElementById('acctDate').value);
-  const notes=gv('acctNotes');const ne=document.getElementById('sa-notes');
-  if(notes){ne.textContent=notes;ne.style.display='block';}else{ne.style.display='none';}
-  const ae=document.getElementById('sa-approval');
-  if(acctApproval==='approved'){ae.textContent='Approved';ae.className='sfv c-appr';}
-  else if(acctApproval==='pending'){ae.textContent='Pending';ae.className='sfv c-pend';}
-  else if(acctApproval==='hold'){ae.textContent='On hold';ae.className='sfv c-hold';}
-  else{ae.textContent='—';ae.className='sfv';}
   document.getElementById('filenameDisplay').textContent=fname();
 }
 
@@ -1001,31 +948,29 @@ function updatePreview(){
 function draftKey(){return DRAFT_PREFIX+(currentPM?slug(currentPM.name):'x');}
 function saveDraft(){
   try{
-    const d={projectName:gv('projectName'),vendorName:gv('vendorName'),ceNumber:gv('ceNumber'),costCode:gv('costCode'),coAmount:gv('coAmount'),coDescription:gv('coDescription'),approvalDate:document.getElementById('approvalDate').value,checkNumber:gv('checkNumber'),checkDate:document.getElementById('checkDate').value,checkAmount:gv('checkAmount'),acctNotes:gv('acctNotes'),acctName:gv('acctName'),acctDate:document.getElementById('acctDate').value,scopeVal,docType,acctApproval,sigData,acctSigData,savedAt:new Date().toLocaleString()};
+    const d={projectName:gv('projectName'),vendorName:gv('vendorName'),ceNumber:gv('ceNumber'),costCode:gv('costCode'),coAmount:gv('coAmount'),coDescription:gv('coDescription'),approvalDate:document.getElementById('approvalDate').value,scopeVal,docType,sigData,savedAt:new Date().toLocaleString()};
     localStorage.setItem(draftKey(),JSON.stringify(d));
     document.getElementById('draftStatus').textContent='Saved '+d.savedAt;toast('Draft saved');
   }catch(e){toast('Could not save draft');}
 }
 function applyFormData(d){
   if(d.projectName)document.getElementById('projectName').value=d.projectName;
-  ['vendorName','ceNumber','costCode','coAmount','coDescription','acctNotes','acctName'].forEach(id=>{if(d[id]!==undefined)document.getElementById(id).value=d[id];});
-  ['approvalDate','checkDate','checkNumber','checkAmount','acctDate'].forEach(id=>{if(d[id]!==undefined)document.getElementById(id).value=d[id];});
-  if(d.scopeVal)setScope(d.scopeVal);if(d.docType)setDoc(d.docType);if(d.acctApproval)setAcctApproval(d.acctApproval);
+  ['vendorName','ceNumber','costCode','coAmount','coDescription'].forEach(id=>{if(d[id]!==undefined)document.getElementById(id).value=d[id];});
+  if(d.approvalDate!==undefined)document.getElementById('approvalDate').value=d.approvalDate;
+  if(d.scopeVal)setScope(d.scopeVal);if(d.docType)setDoc(d.docType);
   if(d.sigData){sigData=d.sigData;const c=document.getElementById('sigCanvas'),img=new Image();img.onload=()=>c.getContext('2d').drawImage(img,0,0,700,88);img.src=sigData;document.getElementById('sigPrevImg').src=sigData;document.getElementById('sigPrevWrap').style.display='block';}
-  if(d.acctSigData){acctSigData=d.acctSigData;const c=document.getElementById('acctSigCanvas'),img=new Image();img.onload=()=>c.getContext('2d').drawImage(img,0,0,700,88);img.src=acctSigData;document.getElementById('acctSigPrevImg').src=acctSigData;document.getElementById('acctSigPrevWrap').style.display='block';}
   updatePreview();
 }
 function tryAutoLoadDraft(){try{const raw=localStorage.getItem(draftKey());if(raw){const d=JSON.parse(raw);applyFormData(d);document.getElementById('draftStatus').textContent='Draft restored: '+(d.savedAt||'');}}catch(e){}}
 function loadDraft(){try{const raw=localStorage.getItem(draftKey());if(!raw){toast('No saved draft');return;}const d=JSON.parse(raw);applyFormData(d);document.getElementById('draftStatus').textContent='Loaded: '+(d.savedAt||'');toast('Draft loaded');}catch(e){toast('Error loading draft');}}
 function clearAll(){
-  ['vendorName','ceNumber','costCode','coAmount','coDescription','checkNumber','checkAmount','acctNotes','acctName'].forEach(id=>document.getElementById(id).value='');
+  ['vendorName','ceNumber','costCode','coAmount','coDescription'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('projectName').value='';
-  document.getElementById('approvalDate').valueAsDate=new Date();document.getElementById('acctDate').valueAsDate=new Date();document.getElementById('checkDate').value='';
-  scopeVal=null;docType=null;acctApproval=null;activeStampEntryId=null;
+  document.getElementById('approvalDate').valueAsDate=new Date();
+  scopeVal=null;docType=null;activeStampEntryId=null;
   DOC_TYPES.forEach(d=>document.getElementById('doc'+d.id).className='dbtn');
   document.getElementById('scopeIn').className='tbtn';document.getElementById('scopeOut').className='tbtn';
-  ['acctApproved','acctPending','acctHold'].forEach(id=>document.getElementById(id).className='tbtn');
-  clearSig('sigCanvas','pm');clearSig('acctSigCanvas','acct');
+  clearSig('sigCanvas');
   uploadedFile=null;document.getElementById('uploadLabel').textContent='Click to upload a change order PDF';document.getElementById('uploadZone').style.borderColor='';document.getElementById('autoFillBtn').style.display='none';
   document.getElementById('draftStatus').textContent='';updatePreview();toast('Form cleared');
 }
@@ -1584,16 +1529,10 @@ async function generatePDF(){
     }else{doc.setFillColor(250,248,245);doc.rect(0,0,pw,ph,'F');doc.setFontSize(11);doc.setTextColor(160,155,148);doc.text('No source document uploaded — stamps only',pw/2,ph/2,{align:'center'});}
     const cc=gv('costCode')||'—',amt=gv('coAmount')||'—',desc=gv('coDescription');
     const scope=scopeVal==='in'?'In scope':'Out of scope',sc=scopeVal==='in'?[59,109,17]:[163,45,45];
-    const cn=gv('checkNumber')||'—',ca=gv('checkAmount')||'—',an=gv('acctName')||'—',notes=gv('acctNotes');
-    const al=acctApproval==='approved'?'Approved':acctApproval==='pending'?'Pending':acctApproval==='hold'?'On hold':'—';
-    const ac=acctApproval==='approved'?[59,109,17]:acctApproval==='pending'?[133,79,11]:acctApproval==='hold'?[163,45,45]:[30,30,30];
-    // Stamp is anchored to the lower-left corner of the attached PDF page,
-    // stacked bottom-up: Accounting box sits flush with the bottom margin,
-    // PM Approval box sits directly above it.
-    const sw=215,pmSH=sigData?175:152,aSH=(notes?20:0)+(acctSigData?175:152);
-    const sx=16,stampBottom=ph-16,accountingY=stampBottom-aSH,pmY=accountingY-10-pmSH;
+    // Stamp is anchored to the lower-left corner of the attached PDF page.
+    const sw=215,pmSH=sigData?175:152;
+    const sx=16,pmY=ph-16-pmSH;
     drawStamp(doc,sx,pmY,sw,pmSH,{title:'PM APPROVAL',rows:[['PROJECT',proj],['VENDOR',vendor],['CE #',ce],['COST CODE',cc],['SCOPE',scope,sc],['DOC TYPE',docType||'—'],['AMOUNT',amt]]},{ll:'APPROVED BY',lv:pm,rl:'DATE',rv:fmtD(pmDate)},[192,41,26],sigData);
-    drawStamp(doc,sx,accountingY,sw,aSH,{title:'ACCOUNTING',rows:[['CHECK #',cn],['CHECK DATE',fmtD(document.getElementById('checkDate').value)],['AMOUNT PAID',ca],['STATUS',al,ac]],notes:notes||null},{ll:'PROCESSED BY',lv:an,rl:'DATE',rv:fmtD(document.getElementById('acctDate').value)},[24,95,165],acctSigData);
     const filename=fname();doc.save(filename);
 
     // Log to cloud tracker. If we know exactly which entry this stamp came
@@ -1613,7 +1552,7 @@ async function generatePDF(){
       }
     }
     const entryId=existingEntry?.id||genId();
-    const entry={id:entryId,project:proj,vendor,ceNumber:ce,amount:amt,scope:scopeVal,docType,costCode:cc,description:desc,pm,approvalDate:fmtD(pmDate),checkNumber:cn,checkDate:fmtD(document.getElementById('checkDate').value),checkAmount:ca,acctNotes:notes,acctName:an,acctDate:fmtD(document.getElementById('acctDate').value),status:'pending',source:existingEntry?.source||'stamp',loggedAt:existingEntry?.loggedAt||new Date().toISOString(),filename,stepStamped:true,stepProcore:existingEntry?.stepProcore||false,stepDocusign:existingEntry?.stepDocusign||false,procoreCE:existingEntry?.procoreCE||'',procoreType:existingEntry?.procoreType||'',docusignID:existingEntry?.docusignID||'',fileKey:existingEntry?.fileKey||'',sourceInvoiceId:existingEntry?.sourceInvoiceId||''};
+    const entry={id:entryId,project:proj,vendor,ceNumber:ce,amount:amt,scope:scopeVal,docType,costCode:cc,description:desc,pm,approvalDate:fmtD(pmDate),status:'pending',source:existingEntry?.source||'stamp',loggedAt:existingEntry?.loggedAt||new Date().toISOString(),filename,stepStamped:true,stepProcore:existingEntry?.stepProcore||false,stepDocusign:existingEntry?.stepDocusign||false,procoreCE:existingEntry?.procoreCE||'',procoreType:existingEntry?.procoreType||'',docusignID:existingEntry?.docusignID||'',fileKey:existingEntry?.fileKey||'',sourceInvoiceId:existingEntry?.sourceInvoiceId||''};
     logCO(entry);saveDraft();
     activeStampEntryId=null;
 
@@ -1628,7 +1567,6 @@ async function generatePDF(){
 }
 
 document.getElementById('approvalDate').valueAsDate=new Date();
-document.getElementById('acctDate').valueAsDate=new Date();
 </script>
 </body>
 </html>
