@@ -647,11 +647,23 @@ async function saveCloud(){
   // JSONBin throttles under bursts of requests using BOTH 429 and 403
   // (403 shows up here specifically, not just the "textbook" 429), so both
   // get the same long backoff. Any other unexpected error also backs off
-  // before retrying instead of hammering the API again immediately — the
-  // previous version had no delay at all in that fallback path, which made
-  // a burst of throttling worse instead of easing off it.
+  // before retrying instead of hammering the API again immediately.
   const isThrottled=(status)=>status===429||status===403;
   const rateLimitBackoff=(attempt)=>2000+Math.random()*2000*attempt;
+  // Every retry path funnels through here so "is this the last attempt"
+  // is checked in exactly one place — a throttled response on the final
+  // attempt used to just fall through the bottom of the loop with no
+  // fallback, leaving the UI frozen on "Saving…" forever instead of ever
+  // reaching a Saved or Save failed state.
+  async function backoffOrGiveUp(attempt){
+    if(attempt===maxAttempts){
+      setSyncStatus('error','Save failed');
+      toast('Cloud save failed — changes may not persist');
+      return false;
+    }
+    await new Promise((resolve)=>setTimeout(resolve,rateLimitBackoff(attempt)));
+    return true;
+  }
   for(let attempt=1;attempt<=maxAttempts;attempt++){
     try{
       const dirtyKeys=Object.keys(cloudData).filter((k)=>
@@ -660,7 +672,7 @@ async function saveCloud(){
       if(!dirtyKeys.length){setSyncStatus('synced','Saved');return;}
 
       const freshRes=await fetch(BIN_URL+'/latest',{headers:HEADERS});
-      if(isThrottled(freshRes.status)){await new Promise((r)=>setTimeout(r,rateLimitBackoff(attempt)));continue;}
+      if(isThrottled(freshRes.status)){if(!(await backoffOrGiveUp(attempt)))return;continue;}
       if(!freshRes.ok)throw new Error('HTTP '+freshRes.status);
       const fresh=await freshRes.json();
 
@@ -668,7 +680,7 @@ async function saveCloud(){
       dirtyKeys.forEach((k)=>{merged[k]=cloudData[k];});
 
       const putRes=await fetch(BIN_URL,{method:'PUT',headers:HEADERS,body:JSON.stringify(merged)});
-      if(isThrottled(putRes.status)){await new Promise((r)=>setTimeout(r,rateLimitBackoff(attempt)));continue;}
+      if(isThrottled(putRes.status)){if(!(await backoffOrGiveUp(attempt)))return;continue;}
       if(!putRes.ok)throw new Error('HTTP '+putRes.status);
 
       const verifyRes=await fetch(BIN_URL+'/latest',{headers:HEADERS});
@@ -686,17 +698,17 @@ async function saveCloud(){
           return;
         }
       }
-      await new Promise((resolve)=>setTimeout(resolve,150+Math.random()*300*attempt));
+      if(!(await backoffOrGiveUp(attempt)))return;
     }catch(e){
       console.error('saveCloud error:',e);
-      if(attempt===maxAttempts){
-        setSyncStatus('error','Save failed');
-        toast('Cloud save failed — changes may not persist');
-        return;
-      }
-      await new Promise((resolve)=>setTimeout(resolve,rateLimitBackoff(attempt)));
+      if(!(await backoffOrGiveUp(attempt)))return;
     }
   }
+  // Defense in depth: the loop should always return via backoffOrGiveUp
+  // above, but if it's ever exhausted some other way, still land on a
+  // definite state instead of leaving the UI stuck on "Saving…".
+  setSyncStatus('error','Save failed');
+  toast('Cloud save failed — changes may not persist');
 }
 
 function scheduleSave(){
