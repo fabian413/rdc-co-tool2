@@ -892,6 +892,11 @@ async function loginAs(pm){
   }
   document.getElementById('pmName').value=pm.name;
   document.getElementById('stampSub').textContent='Logged in as '+pm.name+'. Fill out details, sign, attach PDF, and download.';
+  // Default the Invoice Tracker to showing only this PM's own entries —
+  // otherwise every PM lands on the full team list and sees each other's
+  // invoices by default. They can still switch to "All PMs" manually.
+  const filterPMEl=document.getElementById('filterPM');
+  if(filterPMEl)filterPMEl.value=pm.name;
   await loadCloud();
   populateProjectSelects();renderProjectManager();updatePreview();updateTabBadges();
   tryAutoLoadDraft();
@@ -1297,11 +1302,14 @@ function renderTracker(){
   const filterSourceVal=document.getElementById('filterSource').value;
   const filterDocTypeVal=document.getElementById('filterDocType').value;
 
-  // Populate PM filter dropdown
+  // Populate PM filter dropdown. Uses the full PMS roster (not just names
+  // that already have tracker entries) so that pre-setting this to a
+  // logged-in PM's own name — done at login, to scope their default view
+  // to just their own invoices/COs — always has a matching option, even
+  // before they have any entries yet.
   const pmSel=document.getElementById('filterPM');
   const curPMFilter=pmSel.value;
-  const pmNames=[...new Set(allTracker.map(e=>e.pm).filter(Boolean))].sort();
-  pmSel.innerHTML='<option value="">All PMs</option>'+pmNames.map(p=>`<option value="${p}"${p===curPMFilter?' selected':''}>${p}</option>`).join('');
+  pmSel.innerHTML='<option value="">All PMs</option>'+PMS.map(x=>`<option value="${x.name}"${x.name===curPMFilter?' selected':''}>${x.name}</option>`).join('');
   const filterPMVal=pmSel.value;
 
   // Populate Project filter dropdown
