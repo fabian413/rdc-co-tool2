@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
 <title>Red Door Construction — Invoicing Tool</title>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.9.0/dist/tabler-icons.min.css"/>
+<script src="https://cdn.jsdelivr.net/npm/@azure/msal-browser@3/lib/msal-browser.min.js"></script>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
 :root{
@@ -27,6 +28,11 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .pm-btn:hover{background:rgba(192,41,26,.18);border-color:var(--red);}
 .pm-avatar{width:44px;height:44px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:600;color:#fff;margin:0 auto .6rem;}
 .pm-name-login{color:#fff;font-size:13px;font-weight:500;}
+.ms-login-btn{display:flex;align-items:center;justify-content:center;gap:12px;background:#fff;border:1px solid rgba(0,0,0,.1);border-radius:6px;padding:.85rem 1.6rem;cursor:pointer;font-family:inherit;font-size:15px;font-weight:500;color:#1E1E1E;transition:all .15s;}
+.ms-login-btn:hover{background:#f3f3f3;}
+.ms-login-btn:disabled{opacity:.6;cursor:default;}
+.login-status{color:rgba(255,255,255,.6);font-size:13px;margin-top:1.25rem;text-align:center;max-width:340px;}
+.login-status.err{color:#FF8A80;}
 header{background:var(--charcoal);padding:0 1.5rem;display:flex;align-items:center;justify-content:space-between;height:52px;position:sticky;top:0;z-index:200;}
 .logo{display:flex;align-items:center;gap:9px;}
 .logo-badge{width:28px;height:28px;background:var(--red);border-radius:5px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;color:#fff;}
@@ -235,8 +241,12 @@ header{background:var(--charcoal);padding:0 1.5rem;display:flex;align-items:cent
 <div id="loginScreen">
   <div class="login-logo">R</div>
   <div class="login-title">Red Door Construction</div>
-  <div class="login-sub">Invoicing Tool — Select your name to continue</div>
-  <div class="pm-grid" id="pmGrid"></div>
+  <div class="login-sub">Invoicing Tool — Sign in with your Microsoft account</div>
+  <button id="msLoginBtn" class="ms-login-btn" onclick="msLogin()">
+    <svg width="20" height="20" viewBox="0 0 21 21"><rect x="1" y="1" width="9" height="9" fill="#F25022"/><rect x="11" y="1" width="9" height="9" fill="#7FBA00"/><rect x="1" y="11" width="9" height="9" fill="#00A4EF"/><rect x="11" y="11" width="9" height="9" fill="#FFB900"/></svg>
+    <span id="msLoginBtnText">Sign in with Microsoft</span>
+  </button>
+  <div class="login-status" id="loginStatus"></div>
 </div>
 
 <div id="app" style="display:none">
@@ -678,10 +688,10 @@ function scheduleSave(){
 
 // ── PM CONFIG ─────────────────────────────────────────────────
 const PMS=[
-  {name:"Ashley Maha'a",   initials:'AM',color:'#7F77DD',role:'pm'},
-  {name:'Diedra Chatman',  initials:'DC',color:'#1D9E75',role:'pm'},
-  {name:'Valentina Salcedo',initials:'VS',color:'#D85A30',role:'pm'},
-  {name:'Jannette Cruz',   initials:'JC',color:'#D4537E',role:'pm'},
+  {name:"Ashley Maha'a",   initials:'AM',color:'#7F77DD',role:'pm',email:'ashley@reddoorconstruction.com'},
+  {name:'Diedra Chatman',  initials:'DC',color:'#1D9E75',role:'pm',email:'diedra@reddoorconstruction.com'},
+  {name:'Valentina Salcedo',initials:'VS',color:'#D85A30',role:'pm',email:'valentina@reddoorconstruction.com'},
+  {name:'Jannette Cruz',   initials:'JC',color:'#D4537E',role:'pm',email:'jannette@reddoorconstruction.com'},
 ];
 // ── MASTER COST CODES (Master Cost Code FB1, REV: 241112) ──────
 const MASTER_COST_CODES=[
@@ -740,7 +750,7 @@ function costCodeOptions(selected){
     return `<option value="${val}"${val===selected?' selected':''}>${val}</option>`;
   }).join('');
 }
-const ACCOUNTING_USER={name:'Accounting',initials:'AC',color:'#4A4640',role:'accounting'};
+const ACCOUNTING_USER={name:'Accounting',initials:'AC',color:'#4A4640',role:'accounting',email:'accounting@reddoorconstruction.com',altEmails:['paola@reddoorconstruction.com']};
 const ACCT_EMAILS=['accounting@reddoorconstruction.com','paola@reddoorconstruction.com'];
 const DRAFT_PREFIX='rdc_draft_v3_';
 let currentPM=null;
@@ -821,17 +831,77 @@ function populateProjectSelects(){
   document.getElementById('addco-costcode').innerHTML=costCodeOptions();
 })();
 
-// ── LOGIN ─────────────────────────────────────────────────────
-(function buildLogin(){
-  const grid=document.getElementById('pmGrid');
-  PMS.forEach(pm=>{
-    const btn=document.createElement('button');btn.className='pm-btn';
-    btn.innerHTML=`<div class="pm-avatar" style="background:${pm.color}">${pm.initials}</div><div class="pm-name-login">${pm.name}</div>`;
-    btn.onclick=()=>loginAs(pm);grid.appendChild(btn);
-  });
-  const acctBtn=document.createElement('button');acctBtn.className='pm-btn';
-  acctBtn.innerHTML=`<div class="pm-avatar" style="background:${ACCOUNTING_USER.color}">${ACCOUNTING_USER.initials}</div><div class="pm-name-login">${ACCOUNTING_USER.name}</div>`;
-  acctBtn.onclick=()=>loginAs(ACCOUNTING_USER);grid.appendChild(acctBtn);
+// ── LOGIN (Sign in with Microsoft) ──────────────────────────────
+const msalInstance=new msal.PublicClientApplication({
+  auth:{
+    clientId:'ba8c8254-68bc-4187-b85a-9eb4d666c4ff',
+    authority:'https://login.microsoftonline.com/ce3906af-40d3-46f6-a011-55bcf8baac35',
+    redirectUri:'https://fabian413.github.io/rdc-co-tool2/RDC_ChangeOrderStamp.html',
+  },
+  cache:{cacheLocation:'localStorage'},
+});
+
+function findUserByEmail(email){
+  if(!email)return null;
+  email=email.toLowerCase();
+  const pm=PMS.find(p=>p.email.toLowerCase()===email);
+  if(pm)return pm;
+  if(ACCOUNTING_USER.email.toLowerCase()===email)return ACCOUNTING_USER;
+  if(ACCOUNTING_USER.altEmails&&ACCOUNTING_USER.altEmails.some(e=>e.toLowerCase()===email))return ACCOUNTING_USER;
+  return null;
+}
+
+function setLoginStatus(msg,isErr){
+  const el=document.getElementById('loginStatus');
+  el.textContent=msg||'';
+  el.classList.toggle('err',!!isErr);
+}
+
+async function completeMsLogin(account){
+  const email=account.username||(account.idTokenClaims&&account.idTokenClaims.preferred_username)||'';
+  const user=findUserByEmail(email);
+  if(!user){
+    setLoginStatus(`Access denied: ${email} is not an authorized user of this tool. Contact your administrator.`,true);
+    await msalInstance.logoutPopup({account}).catch(()=>{});
+    document.getElementById('msLoginBtn').disabled=false;
+    return;
+  }
+  setLoginStatus('');
+  await loginAs(user);
+}
+
+async function msLogin(){
+  const btn=document.getElementById('msLoginBtn');
+  btn.disabled=true;
+  setLoginStatus('Signing in…');
+  try{
+    const result=await msalInstance.loginPopup({scopes:['User.Read']});
+    await completeMsLogin(result.account);
+  }catch(err){
+    console.error(err);
+    setLoginStatus('Sign-in failed. Please try again.',true);
+  }
+  btn.disabled=false;
+}
+
+(async function initMsal(){
+  try{
+    await msalInstance.initialize();
+    const redirectResult=await msalInstance.handleRedirectPromise().catch(()=>null);
+    let account=redirectResult&&redirectResult.account;
+    if(!account){
+      const accounts=msalInstance.getAllAccounts();
+      if(accounts.length)account=accounts[0];
+    }
+    if(account){
+      msalInstance.setActiveAccount(account);
+      document.getElementById('msLoginBtn').disabled=true;
+      setLoginStatus('Signing in…');
+      await completeMsLogin(account);
+    }
+  }catch(err){
+    console.error('MSAL init failed',err);
+  }
 })();
 
 function applyRoleVisibility(role){
@@ -869,6 +939,10 @@ function switchPM(){
   if(!confirm('Switch PM? Unsaved changes will be lost.'))return;
   currentPM=null;clearAll();trackerPMFilterInitialized=false;
   document.getElementById('app').style.display='none';document.getElementById('loginScreen').style.display='flex';
+  setLoginStatus('');
+  document.getElementById('msLoginBtn').disabled=false;
+  const account=msalInstance.getActiveAccount();
+  msalInstance.logoutPopup({account}).catch(()=>{});
 }
 
 // ── TABS ──────────────────────────────────────────────────────
