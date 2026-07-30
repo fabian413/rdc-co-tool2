@@ -1475,14 +1475,45 @@ function prefillStamp(id){
   },100);
 }
 
+// mailto: links can never carry an attachment — no browser supports it, for
+// security reasons — so the PDF has always had to be attached manually in
+// whatever email client opens. Where a real file is available, try the Web
+// Share API first instead: on platforms that support sharing files (most
+// Windows/Mac/mobile browsers), it hands the PDF directly to the email app
+// the user picks, already attached. Falls back to plain mailto (with a
+// clear "attach manually" toast) wherever Web Share isn't available.
+async function shareOrEmailPdf({file,filename,subject,body}){
+  if(file&&navigator.canShare&&navigator.canShare({files:[file]})){
+    try{
+      await navigator.share({files:[file],title:subject,text:body});
+      toast('Shared — pick your email app to send it on');
+      return;
+    }catch(err){
+      if(err&&err.name==='AbortError')return; // user cancelled the share sheet
+    }
+  }
+  window.location.href=`mailto:${ACCT_EMAILS.join(',')}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+  toast(file?"Opening email — this browser can't auto-attach, please attach the downloaded PDF manually":'Opening email — attach the stamped PDF manually');
+}
+
 // Email from tracker
-function emailFromTracker(id){
+async function emailFromTracker(id){
   const e=getTracker().find(x=>x.id===id);if(!e)return;
   const scopeStr=e.scope==='in'?'In scope':e.scope==='out'?'Out of scope':'—';
-  const subject=encodeURIComponent(`PM-Approved Change Order – ${e.project} / ${e.vendor} / ${e.ceNumber}`);
-  const body=encodeURIComponent(`Hi,\n\nPlease find the PM-approved change order for processing. The stamped PDF is attached.\n\n── PM APPROVAL ──────────────────\nProject:       ${e.project}\nVendor:        ${e.vendor}\nCE #:          ${e.ceNumber}\nScope:         ${scopeStr}\nCost Code:     ${e.costCode||'N/A'}\nDoc Type:      ${e.docType||'N/A'}\nAmount:        ${e.amount||'N/A'}\nApproved By:   ${e.pm}\n\n── PROCESSING ───────────────────\nProcore CE #:  ${e.procoreCE||'N/A'}\nProcore Type:  ${e.procoreType||'N/A'}\nDocusign Env:  ${e.docusignID||'N/A'}\n\nThank you,\n${e.pm||'Red Door Construction LLC'}`);
-  window.location.href=`mailto:${ACCT_EMAILS.join(',')}?subject=${subject}&body=${body}`;
-  toast('Opening email — attach the stamped PDF');
+  const subject=`PM-Approved Change Order – ${e.project} / ${e.vendor} / ${e.ceNumber}`;
+  const body=`Hi,\n\nPlease find the PM-approved change order for processing. The stamped PDF is attached.\n\n── PM APPROVAL ──────────────────\nProject:       ${e.project}\nVendor:        ${e.vendor}\nCE #:          ${e.ceNumber}\nScope:         ${scopeStr}\nCost Code:     ${e.costCode||'N/A'}\nDoc Type:      ${e.docType||'N/A'}\nAmount:        ${e.amount||'N/A'}\nApproved By:   ${e.pm}\n\n── PROCESSING ───────────────────\nProcore CE #:  ${e.procoreCE||'N/A'}\nProcore Type:  ${e.procoreType||'N/A'}\nDocusign Env:  ${e.docusignID||'N/A'}\n\nThank you,\n${e.pm||'Red Door Construction LLC'}`;
+  let file=null;
+  try{
+    if(e.pdfData&&e.pdfName){
+      const b=atob(e.pdfData),ab=new ArrayBuffer(b.length),ia=new Uint8Array(ab);
+      for(let i=0;i<b.length;i++)ia[i]=b.charCodeAt(i);
+      file=new File([ab],e.pdfName,{type:'application/pdf'});
+    }else if(e.fileKey){
+      const res=await fetch(CLAUDE_PROXY_URL+'/file/'+encodeURIComponent(e.fileKey));
+      if(res.ok){const blob=await res.blob();file=new File([blob],e.filename||'stamped.pdf',{type:'application/pdf'});}
+    }
+  }catch(ex){}
+  await shareOrEmailPdf({file,filename:e.filename||'stamped.pdf',subject,body});
 }
 
 // ── PDF STAMP ─────────────────────────────────────────────────
@@ -1529,7 +1560,10 @@ async function generatePDF(){
     const sw=215,pmSH=sigData?175:152;
     const sx=16,pmY=ph-16-pmSH;
     drawStamp(doc,sx,pmY,sw,pmSH,{title:'PM APPROVAL',rows:[['PROJECT',proj],['VENDOR',vendor],['CE #',ce],['COST CODE',cc],['SCOPE',scope,sc],['DOC TYPE',docType||'—'],['AMOUNT',amt]]},{ll:'APPROVED BY',lv:pm,rl:'DATE',rv:fmtD(pmDate)},[192,41,26],sigData);
-    const filename=fname();doc.save(filename);
+    const filename=fname();
+    let pdfFile=null;
+    try{pdfFile=new File([doc.output('blob')],filename,{type:'application/pdf'});}catch(ex){}
+    doc.save(filename);
 
     // Log to cloud tracker. If we know exactly which entry this stamp came
     // from (via "Stamp now" on a tracker card), update that entry directly
@@ -1552,12 +1586,10 @@ async function generatePDF(){
     logCO(entry);saveDraft();
     activeStampEntryId=null;
 
-    setTimeout(()=>{
-      const subject=encodeURIComponent(`PM-Approved Change Order – ${proj} / ${vendor} / ${ce}`);
-      const body=encodeURIComponent(`Hi,\n\nPlease find the PM-approved change order attached.\n\nProject:       ${proj}\nVendor:        ${vendor}\nCE #:          ${ce}\nScope:         ${scope}\nCost Code:     ${cc}\nDoc Type:      ${docType}\nAmount:        ${amt}\nApproved By:   ${pm}\nDate:          ${fmtD(pmDate)}\n\nThank you,\n${pm}\nRed Door Construction LLC`);
-      window.location.href=`mailto:${ACCT_EMAILS.join(',')}?subject=${subject}&body=${body}`;
-    },800);
-    toast('Downloaded & synced — opening email…');
+    const subject=`PM-Approved Change Order – ${proj} / ${vendor} / ${ce}`;
+    const body=`Hi,\n\nPlease find the PM-approved change order attached.\n\nProject:       ${proj}\nVendor:        ${vendor}\nCE #:          ${ce}\nScope:         ${scope}\nCost Code:     ${cc}\nDoc Type:      ${docType}\nAmount:        ${amt}\nApproved By:   ${pm}\nDate:          ${fmtD(pmDate)}\n\nThank you,\n${pm}\nRed Door Construction LLC`;
+    setTimeout(()=>{shareOrEmailPdf({file:pdfFile,filename,subject,body});},800);
+    toast('Downloaded & synced…');
   }catch(err){console.error(err);toast('Error generating PDF');}
   btn.disabled=false;btn.innerHTML='<i class="ti ti-file-download"></i> Download &amp; send stamped PDF';
 }
