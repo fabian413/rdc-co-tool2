@@ -1325,9 +1325,13 @@ function renderTracker(){
     return true;
   });
 
-  // Summary = full team
-  document.getElementById('sum-pending').textContent=allTracker.filter(e=>e.status==='pending').length;
-  document.getElementById('sum-total').textContent=fmtUSD(allTracker.reduce((s,e)=>s+parseAmt(e.amount),0));
+  // Summary scopes to whichever PM is selected (always the logged-in PM
+  // themselves, since that filter is locked) rather than the whole
+  // company — independent of the other filters (status/project/search)
+  // so it stays a stable overview instead of shrinking with every search.
+  const pmScoped=filterPMVal?allTracker.filter(e=>e.pm===filterPMVal):allTracker;
+  document.getElementById('sum-pending').textContent=pmScoped.filter(e=>e.status==='pending').length;
+  document.getElementById('sum-total').textContent=fmtUSD(pmScoped.reduce((s,e)=>s+parseAmt(e.amount),0));
 
   // Merge all PMs' projects for grouping
   const allPMProjects=Object.values(cloudData.projects||{}).flat();
