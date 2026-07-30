@@ -344,10 +344,8 @@ header{background:var(--charcoal);padding:0 1.5rem;display:flex;align-items:cent
   <div class="panel" id="panel-tracker">
     <h1 class="page-title">Invoice Tracker</h1>
     <p class="page-sub">Change orders and approved invoices, grouped by project. Syncs live across all PM devices.</p>
-    <div class="summary-row">
+    <div class="summary-row" style="grid-template-columns:repeat(2,1fr)">
       <div class="sum-card"><div class="sum-label">Pending items</div><div class="sum-val red" id="sum-pending">0</div></div>
-      <div class="sum-card"><div class="sum-label">Fully complete</div><div class="sum-val green" id="sum-done">0</div></div>
-      <div class="sum-card"><div class="sum-label">In accounting</div><div class="sum-val blue" id="sum-approved">0</div></div>
       <div class="sum-card"><div class="sum-label">Total value</div><div class="sum-val gold" id="sum-total">$0</div></div>
     </div>
     <div class="tracker-toolbar">
@@ -1329,8 +1327,6 @@ function renderTracker(){
 
   // Summary = full team
   document.getElementById('sum-pending').textContent=allTracker.filter(e=>e.status==='pending').length;
-  document.getElementById('sum-done').textContent=allTracker.filter(e=>e.status==='pending'&&allStepsDone(e)).length;
-  document.getElementById('sum-approved').textContent=allTracker.filter(e=>e.status==='approved').length;
   document.getElementById('sum-total').textContent=fmtUSD(allTracker.reduce((s,e)=>s+parseAmt(e.amount),0));
 
   // Merge all PMs' projects for grouping
