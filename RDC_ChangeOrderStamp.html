@@ -752,6 +752,8 @@ function costCodeOptions(selected){
 }
 const ACCOUNTING_USER={name:'Accounting',initials:'AC',color:'#4A4640',role:'accounting',email:'accounting@reddoorconstruction.com',altEmails:['paola@reddoorconstruction.com']};
 const ACCT_EMAILS=['accounting@reddoorconstruction.com','paola@reddoorconstruction.com'];
+// Admin sees every PM's and Accounting's data — unlocked tracker filter, all tabs.
+const ADMIN_USER={name:'Fabian Bedoya',initials:'FB',color:'#185FA5',role:'admin',email:'fabian@reddoorconstruction.com'};
 const DRAFT_PREFIX='rdc_draft_v3_';
 let currentPM=null;
 let scopeVal=null,docType=null,uploadedFile=null,sigData=null;
@@ -848,6 +850,7 @@ function findUserByEmail(email){
   if(pm)return pm;
   if(ACCOUNTING_USER.email.toLowerCase()===email)return ACCOUNTING_USER;
   if(ACCOUNTING_USER.altEmails&&ACCOUNTING_USER.altEmails.some(e=>e.toLowerCase()===email))return ACCOUNTING_USER;
+  if(ADMIN_USER.email.toLowerCase()===email)return ADMIN_USER;
   return null;
 }
 
@@ -908,8 +911,9 @@ function applyRoleVisibility(role){
   const pmTabs=['tab-stamp','tab-tracker','tab-projects'];
   const acctTabs=['tab-invoices','tab-payapp'];
   const isAcct=role==='accounting';
-  pmTabs.forEach(id=>{const el=document.getElementById(id);if(el)el.style.display=isAcct?'none':'flex';});
-  acctTabs.forEach(id=>{const el=document.getElementById(id);if(el)el.style.display=isAcct?'flex':'none';});
+  const isAdmin=role==='admin';
+  pmTabs.forEach(id=>{const el=document.getElementById(id);if(el)el.style.display=(isAcct&&!isAdmin)?'none':'flex';});
+  acctTabs.forEach(id=>{const el=document.getElementById(id);if(el)el.style.display=(isAcct||isAdmin)?'flex':'none';});
 }
 
 async function loginAs(pm){
@@ -923,6 +927,13 @@ async function loginAs(pm){
   if(pm.role==='accounting'){
     await loadCloud();
     switchTab('invoices');
+    return;
+  }
+  if(pm.role==='admin'){
+    trackerPMFilterInitialized=false;
+    await loadCloud();
+    populateProjectSelects();renderProjectManager();updateTabBadges();
+    switchTab('tracker');
     return;
   }
   document.getElementById('pmName').value=pm.name;
