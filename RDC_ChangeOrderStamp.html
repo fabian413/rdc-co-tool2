@@ -99,18 +99,26 @@ header{background:var(--charcoal);padding:0 1.5rem;display:flex;align-items:cent
 .stamps-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:1rem;}
 @media(max-width:520px){.stamps-row{grid-template-columns:1fr;}}
 .stamp-card{background:var(--card);border:.5px solid var(--border);border-radius:var(--rl);padding:.9rem;}
-.stamp-box{border:2.5px solid var(--red);border-radius:4px;padding:10px 12px;}
-.stamp-title{font-size:13px;font-weight:800;color:var(--red);text-align:center;letter-spacing:.05em;text-transform:uppercase;padding-bottom:7px;margin-bottom:7px;border-bottom:2px solid var(--red);}
-.sgrid{display:grid;grid-template-columns:1fr 1fr;gap:5px 10px;}
-.sf{display:flex;flex-direction:column;gap:1px;padding-bottom:4px;border-bottom:.5px dashed var(--border);}
-.sfl{font-size:7.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;}
-.sfv{font-size:11px;font-weight:600;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-.sfv.c-in{color:#3B6D11;}.sfv.c-out{color:#A32D2D;}.sfv.c-appr{color:#3B6D11;}.sfv.c-pend{color:#854F0B;}.sfv.c-hold{color:#A32D2D;}
-.sfv-manual{color:var(--muted2);font-weight:500;font-style:italic;}
-.sig-prev{margin:2px 0 6px;height:24px;}
+/* Colors here are the literal ones from STAMP INVOICE TRACKER.xlsx
+   (pure red FF0000 / pure green 00B050 / gray fill F2F2F2 / pale
+   green fill E2EFDA), not the app's muted brand palette, so this
+   card matches the paper stamp exactly rather than just evoking it. */
+.stamp-box{border:2px solid #FF0000;border-radius:2px;background:#F2F2F2;overflow:hidden;}
+.astamp-title{font-size:16px;font-weight:800;color:#FF0000;text-align:center;padding:7px 8px;border-bottom:1.5px solid #FF0000;}
+.astamp-row{padding:5px 8px;border-bottom:1px solid #FF0000;display:flex;flex-direction:column;gap:1px;}
+.astamp-row.astamp-big .astamp-val{font-size:15px;min-height:18px;}
+.astamp-row.astamp-center{align-items:center;text-align:center;}
+.astamp-lbl{font-size:9px;font-weight:700;color:#FF0000;text-transform:uppercase;letter-spacing:.02em;}
+.astamp-val{font-size:12px;font-weight:700;color:#FF0000;min-height:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.astamp-val.c-in{color:#3B6D11;}.astamp-val.c-out{color:#A32D2D;}
+.astamp-pair{display:grid;grid-template-columns:1fr 1fr;gap:2px 10px;padding:5px 8px;border-bottom:1px solid #FF0000;}
+.astamp-pair.astamp-green{border-bottom-color:#00B050;}
+.astamp-pair.astamp-green .astamp-lbl,.astamp-pair.astamp-green .astamp-val{color:#00B050;}
+.astamp-cell{display:flex;flex-direction:column;gap:1px;}
+.sig-prev{margin:4px 8px 2px;height:24px;}
 .sig-prev img{height:24px;max-width:100%;object-fit:contain;object-position:left;}
-.stamp-notes{margin-top:2px;}
-.notes-box{min-height:30px;background:#E9F7EE;border:1px solid #8FCB9F;border-radius:3px;margin-top:3px;}
+.astamp-notes-label{font-size:9px;font-weight:700;color:#00B050;text-transform:uppercase;letter-spacing:.02em;padding:6px 8px 3px;border-top:1.5px solid #00B050;background:#fff;}
+.astamp-notes-box{margin:0 8px 8px;min-height:42px;background:#E2EFDA;border:1px solid #70AD47;border-radius:2px;}
 .notes-stamp{font-size:8.5px;color:var(--muted);font-style:italic;margin-top:5px;border-top:.5px solid var(--border);padding-top:4px;white-space:pre-wrap;word-break:break-word;}
 .acct-badge{font-size:11px;background:#E6F1FB;color:#185FA5;padding:2px 8px;border-radius:99px;font-weight:500;margin-left:8px;}
 .draft-bar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:1.1rem;}
@@ -333,20 +341,25 @@ header{background:var(--charcoal);padding:0 1.5rem;display:flex;align-items:cent
       <div class="stamp-card">
         <p class="section-label" style="font-size:10px;margin-bottom:8px"><i class="ti ti-stamp"></i> PM stamp</p>
         <div class="stamp-box">
-          <div class="stamp-title">Approval Stamp</div>
-          <div class="sgrid">
-            <div class="sf" style="grid-column:1/-1"><span class="sfl">Approved by</span><span class="sfv" id="sp-pm-top">—</span></div>
-            <div class="sf" style="grid-column:1/-1"><span class="sfl">Job#</span><span class="sfv" id="sp-job">—</span></div>
-            <div class="sf"><span class="sfl">Scope</span><span class="sfv" id="sp-scope">—</span></div>
-            <div class="sf"><span class="sfl">Cost code</span><span class="sfv" id="sp-costcode">—</span></div>
-            <div class="sf" style="grid-column:1/-1"><span class="sfl">Invoice type</span><span class="sfv" id="sp-doctype">—</span></div>
-            <div class="sf"><span class="sfl">Check #</span><span class="sfv sfv-manual">manual</span></div>
-            <div class="sf"><span class="sfl">Date</span><span class="sfv" id="sp-date">—</span></div>
-            <div class="sf"><span class="sfl">Amount</span><span class="sfv" id="sp-amount">—</span></div>
-            <div class="sf"><span class="sfl">Approved by</span><span class="sfv" id="sp-pm">—</span></div>
+          <div class="astamp-title">Approval Stamp</div>
+          <div class="astamp-row astamp-big"><span class="astamp-lbl">Approved by</span><span class="astamp-val" id="sp-pm-top">&nbsp;</span></div>
+          <div class="astamp-row astamp-center"><span class="astamp-lbl">Job#</span><span class="astamp-val" id="sp-job">&nbsp;</span></div>
+          <div class="astamp-pair">
+            <div class="astamp-cell"><span class="astamp-lbl">Scope</span><span class="astamp-val" id="sp-scope">&nbsp;</span></div>
+            <div class="astamp-cell"><span class="astamp-lbl">Cost code</span><span class="astamp-val" id="sp-costcode">&nbsp;</span></div>
+          </div>
+          <div class="astamp-row astamp-center"><span class="astamp-lbl">Invoice type</span><span class="astamp-val" id="sp-doctype">&nbsp;</span></div>
+          <div class="astamp-pair astamp-green">
+            <div class="astamp-cell"><span class="astamp-lbl">Check #</span><span class="astamp-val">&nbsp;</span></div>
+            <div class="astamp-cell"><span class="astamp-lbl">Date</span><span class="astamp-val" id="sp-date">&nbsp;</span></div>
+          </div>
+          <div class="astamp-pair astamp-green" style="border-bottom:none">
+            <div class="astamp-cell"><span class="astamp-lbl">Amount</span><span class="astamp-val" id="sp-amount">&nbsp;</span></div>
+            <div class="astamp-cell"><span class="astamp-lbl">Approved by</span><span class="astamp-val" id="sp-pm">&nbsp;</span></div>
           </div>
           <div class="sig-prev" id="sigPrevWrap" style="display:none"><img id="sigPrevImg" src="" alt="sig"/></div>
-          <div class="stamp-notes"><span class="sfl">Additional notes</span><div class="notes-box"></div></div>
+          <div class="astamp-notes-label">Additional notes</div>
+          <div class="astamp-notes-box"></div>
         </div>
       </div>
     </div>
@@ -1042,17 +1055,17 @@ function genId(){return Date.now().toString(36)+Math.random().toString(36).slice
 
 // ── PREVIEW ───────────────────────────────────────────────────
 function updatePreview(){
-  document.getElementById('sp-job').textContent=gv('projectName')||'—';
-  document.getElementById('sp-costcode').textContent=gv('costCode')||'—';
-  document.getElementById('sp-amount').textContent=gv('coAmount')||'—';
-  document.getElementById('sp-pm').textContent=currentPM?currentPM.name:'—';
-  document.getElementById('sp-pm-top').textContent=currentPM?currentPM.name:'—';
-  document.getElementById('sp-date').textContent=fmtD(document.getElementById('approvalDate').value);
-  document.getElementById('sp-doctype').textContent=docType||'—';
+  document.getElementById('sp-job').textContent=gv('projectName')||' ';
+  document.getElementById('sp-costcode').textContent=gv('costCode')||' ';
+  document.getElementById('sp-amount').textContent=gv('coAmount')||' ';
+  document.getElementById('sp-pm').textContent=currentPM?currentPM.name:' ';
+  document.getElementById('sp-pm-top').textContent=currentPM?currentPM.name:' ';
+  document.getElementById('sp-date').textContent=fmtD(document.getElementById('approvalDate').value)||' ';
+  document.getElementById('sp-doctype').textContent=docType||' ';
   const se=document.getElementById('sp-scope');
-  if(scopeVal==='in'){se.textContent='In scope';se.className='sfv c-in';}
-  else if(scopeVal==='out'){se.textContent='Out of scope';se.className='sfv c-out';}
-  else{se.textContent='—';se.className='sfv';}
+  if(scopeVal==='in'){se.textContent='In scope';se.className='astamp-val c-in';}
+  else if(scopeVal==='out'){se.textContent='Out of scope';se.className='astamp-val c-out';}
+  else{se.textContent=' ';se.className='astamp-val';}
   document.getElementById('filenameDisplay').textContent=fname();
 }
 
@@ -1652,45 +1665,46 @@ async function emailFromTracker(id){
 }
 
 // ── PDF STAMP ─────────────────────────────────────────────────
-// Layout mirrors the company's paper "APPROVAL STAMP" template
-// (STAMP INVOICE TRACKER.xlsx): red-bordered box, bold red title,
-// stacked/paired label+value rows, and a blank green Additional
-// Notes box left for someone to fill in by hand after printing.
+// Colors match STAMP INVOICE TRACKER.xlsx literally (pure red
+// FF0000 / pure green 00B050 / gray fill F2F2F2 / pale green fill
+// E2EFDA), not the app's muted brand palette — square corners, no
+// rounding, since the source is a plain cell grid. The Additional
+// Notes box is drawn but left empty for someone to fill in by hand.
 function drawStamp(doc,sx,sy,sw,sh,data,sigImg){
-  const red=[192,41,26],pad=8;
-  doc.setFillColor(255,255,255);doc.setDrawColor(red[0],red[1],red[2]);doc.setLineWidth(1.75);
-  doc.roundedRect(sx,sy,sw,sh,3,3,'FD');
+  const red=[255,0,0],green=[0,176,80],gray=[242,242,242],paleGreen=[226,239,218],greenBorder=[112,173,71],pad=8;
+  doc.setFillColor(gray[0],gray[1],gray[2]);doc.setDrawColor(red[0],red[1],red[2]);doc.setLineWidth(1.5);
+  doc.rect(sx,sy,sw,sh,'FD');
   const cx=sx+sw/2;
-  let y=sy+9;
-  doc.setFont('helvetica','bold');doc.setFontSize(11);doc.setTextColor(red[0],red[1],red[2]);
+  let y=sy+10;
+  doc.setFont('helvetica','bold');doc.setFontSize(13);doc.setTextColor(red[0],red[1],red[2]);
   doc.text('APPROVAL STAMP',cx,y,{align:'center'});
-  y+=6;
-  doc.setLineWidth(0.9);doc.setDrawColor(red[0],red[1],red[2]);doc.line(sx+pad,y,sx+sw-pad,y);
-  y+=11;
+  y+=5;
+  doc.setLineWidth(1);doc.setDrawColor(red[0],red[1],red[2]);doc.line(sx,y,sx+sw,y);
+  y+=10;
   const fullW=sw-2*pad,halfW=sw/2-pad-4,col2X=sx+sw/2+4;
-  const field=(label,value,x,w,vc)=>{
-    doc.setFont('helvetica','normal');doc.setFontSize(6);doc.setTextColor(140,135,128);
+  const field=(label,value,x,w,c)=>{
+    doc.setFont('helvetica','bold');doc.setFontSize(5.5);doc.setTextColor(c[0],c[1],c[2]);
     doc.text(label,x,y);
-    doc.setFont('helvetica','bold');doc.setFontSize(8);
-    const c=vc||[30,30,30];doc.setTextColor(c[0],c[1],c[2]);
-    doc.text(doc.splitTextToSize(value||'—',w)[0],x,y+7);
+    doc.setFontSize(8.5);
+    doc.text(doc.splitTextToSize(value||' ',w)[0],x,y+7);
   };
-  field('APPROVED BY',data.pm,sx+pad,fullW);y+=15;
-  field('JOB#',data.job,sx+pad,fullW);y+=15;
-  field('SCOPE',data.scope,sx+pad,halfW,data.scopeColor);
-  field('COST CODE',data.costCode,col2X,halfW);y+=15;
-  field('INVOICE TYPE',data.docType,sx+pad,fullW);y+=15;
-  doc.setFont('helvetica','normal');doc.setFontSize(6);doc.setTextColor(140,135,128);doc.text('CHECK #',sx+pad,y);
-  doc.setFont('helvetica','italic');doc.setFontSize(7);doc.setTextColor(170,165,158);doc.text('manual',sx+pad,y+7);
-  field('DATE',data.date,col2X,halfW);y+=15;
-  field('AMOUNT',data.amount,sx+pad,halfW);
-  field('APPROVED BY',data.pm,col2X,halfW);y+=13;
-  if(sigImg){try{doc.addImage(sigImg,'PNG',sx+pad,y,fullW,14);}catch(ex){}y+=18;}
-  doc.setFont('helvetica','normal');doc.setFontSize(6);doc.setTextColor(140,135,128);
-  doc.text('ADDITIONAL NOTES',sx+pad,y);y+=4;
+  const rule=(c)=>{doc.setDrawColor(c[0],c[1],c[2]);doc.setLineWidth(0.75);doc.line(sx,y+3,sx+sw,y+3);};
+  field('APPROVED BY',data.pm,sx+pad,fullW,red);y+=15;rule(red);y+=1;
+  field('JOB#',data.job,sx+pad,fullW,red);y+=15;rule(red);y+=1;
+  field('SCOPE',data.scope,sx+pad,halfW,red);
+  field('COST CODE',data.costCode,col2X,halfW,red);y+=15;rule(red);y+=1;
+  field('INVOICE TYPE',data.docType,sx+pad,fullW,red);y+=15;rule(red);y+=1;
+  field('CHECK #',' ',sx+pad,halfW,green);
+  field('DATE',data.date,col2X,halfW,green);y+=15;rule(green);y+=1;
+  field('AMOUNT',data.amount,sx+pad,halfW,green);
+  field('APPROVED BY',data.pm,col2X,halfW,green);y+=13;
+  if(sigImg){try{doc.addImage(sigImg,'PNG',sx+pad,y,fullW,14);}catch(ex){}y+=17;}
+  doc.setDrawColor(green[0],green[1],green[2]);doc.setLineWidth(1);doc.line(sx,y,sx+sw,y);y+=2;
+  doc.setFont('helvetica','bold');doc.setFontSize(5.5);doc.setTextColor(green[0],green[1],green[2]);
+  doc.text('ADDITIONAL NOTES',sx+pad,y+4);y+=8;
   const notesH=Math.max(20,sy+sh-y-6);
-  doc.setFillColor(233,247,238);doc.setDrawColor(143,203,159);doc.setLineWidth(0.6);
-  doc.roundedRect(sx+pad,y,fullW,notesH,2,2,'FD');
+  doc.setFillColor(paleGreen[0],paleGreen[1],paleGreen[2]);doc.setDrawColor(greenBorder[0],greenBorder[1],greenBorder[2]);doc.setLineWidth(0.6);
+  doc.rect(sx+pad,y,fullW,notesH,'FD');
 }
 
 async function generatePDF(){
@@ -1708,7 +1722,7 @@ async function generatePDF(){
     const cc=gv('costCode')||'—',amt=gv('coAmount')||'—',desc=gv('coDescription');
     const scope=scopeVal==='in'?'In scope':'Out of scope',sc=scopeVal==='in'?[59,109,17]:[163,45,45];
     // Stamp is anchored to the lower-left corner of the attached PDF page.
-    const sw=215,pmSH=sigData?176:156;
+    const sw=215,pmSH=sigData?180:158;
     const sx=16,pmY=ph-16-pmSH;
     drawStamp(doc,sx,pmY,sw,pmSH,{pm,job:proj,scope,scopeColor:sc,costCode:cc,docType:docType||'—',date:fmtD(pmDate),amount:amt},sigData);
     const filename=fname();
