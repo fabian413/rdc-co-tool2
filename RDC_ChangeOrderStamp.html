@@ -96,9 +96,8 @@ header{background:var(--charcoal);padding:0 1.5rem;display:flex;align-items:cent
 .sig-clear{position:absolute;top:6px;right:7px;font-size:11px;color:var(--muted);cursor:pointer;background:var(--card);border:.5px solid var(--border);border-radius:var(--r);padding:2px 8px;font-family:inherit;}
 .sig-clear:hover{color:var(--red);border-color:var(--red);}
 .sig-hint{font-size:11px;color:var(--muted);margin-top:3px;}
-.stamps-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:1rem;}
-@media(max-width:520px){.stamps-row{grid-template-columns:1fr;}}
-.stamp-card{background:var(--card);border:.5px solid var(--border);border-radius:var(--rl);padding:.9rem;}
+.stamps-row{margin-bottom:1rem;}
+.stamp-card{background:var(--card);border:.5px solid var(--border);border-radius:var(--rl);padding:.9rem;max-width:420px;}
 /* Colors here are the literal ones from STAMP INVOICE TRACKER.xlsx
    (pure red FF0000 / pure green 00B050 / gray fill F2F2F2 / pale
    green fill E2EFDA), not the app's muted brand palette, so this
