@@ -351,11 +351,11 @@ header{background:var(--charcoal);padding:0 1.5rem;display:flex;align-items:cent
           <div class="astamp-row astamp-center"><span class="astamp-lbl">Invoice type</span><span class="astamp-val" id="sp-doctype">&nbsp;</span></div>
           <div class="astamp-pair astamp-green">
             <div class="astamp-cell"><span class="astamp-lbl">Check #</span><span class="astamp-val">&nbsp;</span></div>
-            <div class="astamp-cell"><span class="astamp-lbl">Date</span><span class="astamp-val" id="sp-date">&nbsp;</span></div>
+            <div class="astamp-cell"><span class="astamp-lbl">Date</span><span class="astamp-val">&nbsp;</span></div>
           </div>
           <div class="astamp-pair astamp-green" style="border-bottom:none">
-            <div class="astamp-cell"><span class="astamp-lbl">Amount</span><span class="astamp-val" id="sp-amount">&nbsp;</span></div>
-            <div class="astamp-cell"><span class="astamp-lbl">Approved by</span><span class="astamp-val" id="sp-pm">&nbsp;</span></div>
+            <div class="astamp-cell"><span class="astamp-lbl">Amount</span><span class="astamp-val">&nbsp;</span></div>
+            <div class="astamp-cell"><span class="astamp-lbl">Approved by</span><span class="astamp-val">&nbsp;</span></div>
           </div>
           <div class="sig-prev" id="sigPrevWrap" style="display:none"><img id="sigPrevImg" src="" alt="sig"/></div>
           <div class="astamp-notes-label">Additional notes</div>
@@ -1054,13 +1054,13 @@ function fmtUSD(n){return'$'+n.toLocaleString('en-US',{minimumFractionDigits:2,m
 function genId(){return Date.now().toString(36)+Math.random().toString(36).slice(2,6);}
 
 // ── PREVIEW ───────────────────────────────────────────────────
+// Date, Amount, and the second Approved By (the green section, mirroring
+// the Excel template's green = manual-entry fields) are intentionally left
+// blank — only the red section above reflects the form's data.
 function updatePreview(){
   document.getElementById('sp-job').textContent=gv('projectName')||' ';
   document.getElementById('sp-costcode').textContent=gv('costCode')||' ';
-  document.getElementById('sp-amount').textContent=gv('coAmount')||' ';
-  document.getElementById('sp-pm').textContent=currentPM?currentPM.name:' ';
   document.getElementById('sp-pm-top').textContent=currentPM?currentPM.name:' ';
-  document.getElementById('sp-date').textContent=fmtD(document.getElementById('approvalDate').value)||' ';
   document.getElementById('sp-doctype').textContent=docType||' ';
   const se=document.getElementById('sp-scope');
   if(scopeVal==='in'){se.textContent='In scope';se.className='astamp-val c-in';}
@@ -1695,9 +1695,9 @@ function drawStamp(doc,sx,sy,sw,sh,data,sigImg){
   field('COST CODE',data.costCode,col2X,halfW,red);y+=15;rule(red);y+=1;
   field('INVOICE TYPE',data.docType,sx+pad,fullW,red);y+=15;rule(red);y+=1;
   field('CHECK #',' ',sx+pad,halfW,green);
-  field('DATE',data.date,col2X,halfW,green);y+=15;rule(green);y+=1;
-  field('AMOUNT',data.amount,sx+pad,halfW,green);
-  field('APPROVED BY',data.pm,col2X,halfW,green);y+=13;
+  field('DATE',' ',col2X,halfW,green);y+=15;rule(green);y+=1;
+  field('AMOUNT',' ',sx+pad,halfW,green);
+  field('APPROVED BY',' ',col2X,halfW,green);y+=13;
   if(sigImg){try{doc.addImage(sigImg,'PNG',sx+pad,y,fullW,14);}catch(ex){}y+=17;}
   doc.setDrawColor(green[0],green[1],green[2]);doc.setLineWidth(1);doc.line(sx,y,sx+sw,y);y+=2;
   doc.setFont('helvetica','bold');doc.setFontSize(5.5);doc.setTextColor(green[0],green[1],green[2]);
