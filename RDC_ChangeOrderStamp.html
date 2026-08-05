@@ -1105,6 +1105,23 @@ function findLikelyDuplicateTrackerEntry(vendor,amount,excludeId){
     (e.amount||'').replace(/[^0-9.]/g,'')===normAmount
   );
 }
+// An invoice-origin tracker entry (from "Send to PM") starts with no CE# —
+// once a PM assigns one while stamping it, the project+ceNumber+vendor
+// match below no longer finds it, so without this it silently creates a
+// duplicate instead of completing the original. Only matches an unstamped
+// "invoice"-source entry with the same project+vendor+amount, so distinct
+// invoices from the same vendor (different amounts) are never conflated.
+function findUnstampedInvoiceOrigin(project,vendor,amount){
+  const normVendor=(vendor||'').trim().toLowerCase();
+  const normAmount=(amount||'').replace(/[^0-9.]/g,'');
+  if(!project||!normVendor)return null;
+  return getTracker().find(e=>
+    e.source==='invoice'&&!e.stepStamped&&e.status==='pending'&&
+    e.project===project&&
+    (e.vendor||'').trim().toLowerCase()===normVendor&&
+    (!normAmount||(e.amount||'').replace(/[^0-9.]/g,'')===normAmount)
+  );
+}
 function logCO(entry){
   const t=getTracker();const i=t.findIndex(e=>e.id===entry.id);
   if(i>=0)t[i]=entry;else t.unshift(entry);
@@ -1704,10 +1721,15 @@ async function generatePDF(){
     // — matching by project+ceNumber+vendor alone breaks (and creates a
     // duplicate) whenever the project field gets corrected while stamping,
     // which happens often for invoice-origin entries with AI-guessed
-    // project names.
+    // project names. Falling back further to findUnstampedInvoiceOrigin
+    // catches the other common case: an invoice sent to the PM with no CE#
+    // yet, stamped by typing the form in fresh instead of clicking "Stamp
+    // now" on the card — the CE# assigned here wouldn't match its blank
+    // original otherwise, silently leaving that original stuck "pending".
     const existingEntry=activeStampEntryId
       ?getTracker().find(e=>e.id===activeStampEntryId)
-      :getTracker().find(e=>e.project===proj&&e.ceNumber===ce&&e.vendor===vendor);
+      :getTracker().find(e=>e.project===proj&&e.ceNumber===ce&&e.vendor===vendor)
+        ||findUnstampedInvoiceOrigin(proj,vendor,amt);
     if(!existingEntry){
       const dupe=findLikelyDuplicateTrackerEntry(vendor,amt,null);
       if(dupe&&!confirm(`A tracker entry for ${vendor} at ${amt||'this amount'} already exists (project: ${dupe.project||'—'}). The PDF has already downloaded — add a new tracker entry anyway?`)){
