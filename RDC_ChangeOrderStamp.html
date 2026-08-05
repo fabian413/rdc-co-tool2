@@ -91,26 +91,18 @@ header{background:var(--charcoal);padding:0 1.5rem;display:flex;align-items:cent
 .stamps-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:1rem;}
 @media(max-width:520px){.stamps-row{grid-template-columns:1fr;}}
 .stamp-card{background:var(--card);border:.5px solid var(--border);border-radius:var(--rl);padding:.9rem;}
-.stamp-box{border:2px solid var(--red);border-radius:4px;padding:9px 11px;}
-.stamp-box.acct{border-color:var(--blue);}
-.stamp-hdr{display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--red);padding-bottom:6px;margin-bottom:8px;}
-.stamp-box.acct .stamp-hdr{border-bottom-color:var(--blue);}
-.stitle{font-size:10px;font-weight:600;color:var(--red);letter-spacing:.06em;text-transform:uppercase;}
-.stamp-box.acct .stitle{color:var(--blue);}
-.sbrand{display:flex;align-items:center;gap:4px;}
-.sbrand-ico{width:12px;height:12px;border-radius:2px;display:flex;align-items:center;justify-content:center;font-size:7px;font-weight:700;color:#fff;flex-shrink:0;}
-.sbrand-name{font-size:8px;font-weight:500;letter-spacing:.04em;}
-.sgrid{display:grid;grid-template-columns:1fr 1fr;gap:4px 9px;}
-.sf{display:flex;flex-direction:column;gap:1px;}
+.stamp-box{border:2.5px solid var(--red);border-radius:4px;padding:10px 12px;}
+.stamp-title{font-size:13px;font-weight:800;color:var(--red);text-align:center;letter-spacing:.05em;text-transform:uppercase;padding-bottom:7px;margin-bottom:7px;border-bottom:2px solid var(--red);}
+.sgrid{display:grid;grid-template-columns:1fr 1fr;gap:5px 10px;}
+.sf{display:flex;flex-direction:column;gap:1px;padding-bottom:4px;border-bottom:.5px dashed var(--border);}
 .sfl{font-size:7.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;}
 .sfv{font-size:11px;font-weight:600;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .sfv.c-in{color:#3B6D11;}.sfv.c-out{color:#A32D2D;}.sfv.c-appr{color:#3B6D11;}.sfv.c-pend{color:#854F0B;}.sfv.c-hold{color:#A32D2D;}
-.sfoot{border-top:.5px solid var(--border);margin-top:7px;padding-top:6px;}
-.sfootr{display:flex;justify-content:space-between;align-items:flex-end;}
-.sfootl{font-size:7px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;}
-.sfootv{font-size:10px;font-style:italic;color:var(--text);}
-.sig-prev{margin-top:4px;height:24px;}
+.sfv-manual{color:var(--muted2);font-weight:500;font-style:italic;}
+.sig-prev{margin:2px 0 6px;height:24px;}
 .sig-prev img{height:24px;max-width:100%;object-fit:contain;object-position:left;}
+.stamp-notes{margin-top:2px;}
+.notes-box{min-height:30px;background:#E9F7EE;border:1px solid #8FCB9F;border-radius:3px;margin-top:3px;}
 .notes-stamp{font-size:8.5px;color:var(--muted);font-style:italic;margin-top:5px;border-top:.5px solid var(--border);padding-top:4px;white-space:pre-wrap;word-break:break-word;}
 .acct-badge{font-size:11px;background:#E6F1FB;color:#185FA5;padding:2px 8px;border-radius:99px;font-weight:500;margin-left:8px;}
 .draft-bar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:1.1rem;}
@@ -333,17 +325,20 @@ header{background:var(--charcoal);padding:0 1.5rem;display:flex;align-items:cent
       <div class="stamp-card">
         <p class="section-label" style="font-size:10px;margin-bottom:8px"><i class="ti ti-stamp"></i> PM stamp</p>
         <div class="stamp-box">
-          <div class="stamp-hdr"><span class="stitle">PM Approval</span><div class="sbrand"><div class="sbrand-ico" style="background:var(--red)">R</div><span class="sbrand-name" style="color:var(--red)">Red Door Construction</span></div></div>
+          <div class="stamp-title">Approval Stamp</div>
           <div class="sgrid">
-            <div class="sf"><span class="sfl">Project</span><span class="sfv" id="sp-project">—</span></div>
-            <div class="sf"><span class="sfl">Vendor</span><span class="sfv" id="sp-vendor">—</span></div>
-            <div class="sf"><span class="sfl">CE #</span><span class="sfv" id="sp-ce">—</span></div>
-            <div class="sf"><span class="sfl">Cost code</span><span class="sfv" id="sp-costcode">—</span></div>
+            <div class="sf" style="grid-column:1/-1"><span class="sfl">Approved by</span><span class="sfv" id="sp-pm-top">—</span></div>
+            <div class="sf" style="grid-column:1/-1"><span class="sfl">Job#</span><span class="sfv" id="sp-job">—</span></div>
             <div class="sf"><span class="sfl">Scope</span><span class="sfv" id="sp-scope">—</span></div>
-            <div class="sf"><span class="sfl">Doc type</span><span class="sfv" id="sp-doctype">—</span></div>
-            <div class="sf" style="grid-column:1/-1"><span class="sfl">Amount</span><span class="sfv" id="sp-amount">—</span></div>
+            <div class="sf"><span class="sfl">Cost code</span><span class="sfv" id="sp-costcode">—</span></div>
+            <div class="sf" style="grid-column:1/-1"><span class="sfl">Invoice type</span><span class="sfv" id="sp-doctype">—</span></div>
+            <div class="sf"><span class="sfl">Check #</span><span class="sfv sfv-manual">manual</span></div>
+            <div class="sf"><span class="sfl">Date</span><span class="sfv" id="sp-date">—</span></div>
+            <div class="sf"><span class="sfl">Amount</span><span class="sfv" id="sp-amount">—</span></div>
+            <div class="sf"><span class="sfl">Approved by</span><span class="sfv" id="sp-pm">—</span></div>
           </div>
-          <div class="sfoot"><div class="sfootr"><div><div class="sfootl">Approved by</div><div class="sfootv" id="sp-pm">—</div></div><div style="text-align:right"><div class="sfootl">Date</div><div class="sfootv" id="sp-date">—</div></div></div><div class="sig-prev" id="sigPrevWrap" style="display:none"><img id="sigPrevImg" src="" alt="sig"/></div></div>
+          <div class="sig-prev" id="sigPrevWrap" style="display:none"><img id="sigPrevImg" src="" alt="sig"/></div>
+          <div class="stamp-notes"><span class="sfl">Additional notes</span><div class="notes-box"></div></div>
         </div>
       </div>
     </div>
@@ -1014,12 +1009,11 @@ function genId(){return Date.now().toString(36)+Math.random().toString(36).slice
 
 // ── PREVIEW ───────────────────────────────────────────────────
 function updatePreview(){
-  document.getElementById('sp-project').textContent=gv('projectName')||'—';
-  document.getElementById('sp-vendor').textContent=gv('vendorName')||'—';
-  document.getElementById('sp-ce').textContent=gv('ceNumber')||'—';
+  document.getElementById('sp-job').textContent=gv('projectName')||'—';
   document.getElementById('sp-costcode').textContent=gv('costCode')||'—';
   document.getElementById('sp-amount').textContent=gv('coAmount')||'—';
   document.getElementById('sp-pm').textContent=currentPM?currentPM.name:'—';
+  document.getElementById('sp-pm-top').textContent=currentPM?currentPM.name:'—';
   document.getElementById('sp-date').textContent=fmtD(document.getElementById('approvalDate').value);
   document.getElementById('sp-doctype').textContent=docType||'—';
   const se=document.getElementById('sp-scope');
@@ -1608,29 +1602,45 @@ async function emailFromTracker(id){
 }
 
 // ── PDF STAMP ─────────────────────────────────────────────────
-function drawStamp(doc,sx,sy,sw,sh,fields,footer,bc,sigImg){
-  const[r,g,b]=bc;
-  doc.setFillColor(255,255,255);doc.setDrawColor(r,g,b);doc.setLineWidth(1.5);doc.roundedRect(sx,sy,sw,sh,3,3,'FD');
-  doc.setLineWidth(0.5);doc.line(sx,sy+22,sx+sw,sy+22);
-  doc.setFillColor(r,g,b);doc.roundedRect(sx+8,sy+5,13,13,1,1,'F');
-  doc.setFont('helvetica','bold');doc.setFontSize(9);doc.setTextColor(255,255,255);doc.text('R',sx+12.5,sy+14);
-  doc.setFontSize(7.5);doc.setTextColor(r,g,b);doc.text(fields.title,sx+25,sy+13);
-  doc.setFont('helvetica','normal');doc.setFontSize(6);doc.setTextColor(r,g,b);doc.text('RED DOOR CONSTRUCTION LLC',sx+sw-8,sy+13,{align:'right'});
-  let fy=sy+32;
-  fields.rows.forEach((row,i)=>{
-    const col=i%2===0?sx+8:sx+sw/2+4,ry=fy+Math.floor(i/2)*20;
-    doc.setFont('helvetica','normal');doc.setFontSize(6);doc.setTextColor(140,135,128);doc.text(row[0],col,ry);
-    doc.setFont('helvetica','bold');doc.setFontSize(8);const vc=row[2]||[30,30,30];doc.setTextColor(vc[0],vc[1],vc[2]);
-    doc.text(doc.splitTextToSize(row[1],sw/2-12)[0],col,ry+8);
-  });
-  if(fields.notes){const ny=sy+sh-38;doc.setDrawColor(220,215,208);doc.setLineWidth(0.4);doc.line(sx+8,ny-2,sx+sw-8,ny-2);doc.setFont('helvetica','normal');doc.setFontSize(6.5);doc.setTextColor(120,115,108);doc.text(doc.splitTextToSize(fields.notes,sw-16).slice(0,2),sx+8,ny+5);}
-  const fy2=sy+sh-(sigImg?30:16);
-  doc.setDrawColor(220,215,208);doc.setLineWidth(0.4);doc.line(sx+8,fy2-4,sx+sw-8,fy2-4);
-  doc.setFont('helvetica','normal');doc.setFontSize(6);doc.setTextColor(140,135,128);doc.text(footer.ll,sx+8,fy2+1);
-  doc.setFont('helvetica','bolditalic');doc.setFontSize(7.5);doc.setTextColor(30,30,30);doc.text(footer.lv,sx+8,fy2+9);
-  doc.setFont('helvetica','normal');doc.setFontSize(6);doc.setTextColor(140,135,128);doc.text(footer.rl,sx+sw-8,fy2+1,{align:'right'});
-  doc.setFont('helvetica','bold');doc.setFontSize(7.5);doc.setTextColor(30,30,30);doc.text(footer.rv,sx+sw-8,fy2+9,{align:'right'});
-  if(sigImg){try{doc.addImage(sigImg,'PNG',sx+8,fy2+12,sw-16,16);}catch(ex){}}
+// Layout mirrors the company's paper "APPROVAL STAMP" template
+// (STAMP INVOICE TRACKER.xlsx): red-bordered box, bold red title,
+// stacked/paired label+value rows, and a blank green Additional
+// Notes box left for someone to fill in by hand after printing.
+function drawStamp(doc,sx,sy,sw,sh,data,sigImg){
+  const red=[192,41,26],pad=8;
+  doc.setFillColor(255,255,255);doc.setDrawColor(red[0],red[1],red[2]);doc.setLineWidth(1.75);
+  doc.roundedRect(sx,sy,sw,sh,3,3,'FD');
+  const cx=sx+sw/2;
+  let y=sy+9;
+  doc.setFont('helvetica','bold');doc.setFontSize(11);doc.setTextColor(red[0],red[1],red[2]);
+  doc.text('APPROVAL STAMP',cx,y,{align:'center'});
+  y+=6;
+  doc.setLineWidth(0.9);doc.setDrawColor(red[0],red[1],red[2]);doc.line(sx+pad,y,sx+sw-pad,y);
+  y+=11;
+  const fullW=sw-2*pad,halfW=sw/2-pad-4,col2X=sx+sw/2+4;
+  const field=(label,value,x,w,vc)=>{
+    doc.setFont('helvetica','normal');doc.setFontSize(6);doc.setTextColor(140,135,128);
+    doc.text(label,x,y);
+    doc.setFont('helvetica','bold');doc.setFontSize(8);
+    const c=vc||[30,30,30];doc.setTextColor(c[0],c[1],c[2]);
+    doc.text(doc.splitTextToSize(value||'—',w)[0],x,y+7);
+  };
+  field('APPROVED BY',data.pm,sx+pad,fullW);y+=15;
+  field('JOB#',data.job,sx+pad,fullW);y+=15;
+  field('SCOPE',data.scope,sx+pad,halfW,data.scopeColor);
+  field('COST CODE',data.costCode,col2X,halfW);y+=15;
+  field('INVOICE TYPE',data.docType,sx+pad,fullW);y+=15;
+  doc.setFont('helvetica','normal');doc.setFontSize(6);doc.setTextColor(140,135,128);doc.text('CHECK #',sx+pad,y);
+  doc.setFont('helvetica','italic');doc.setFontSize(7);doc.setTextColor(170,165,158);doc.text('manual',sx+pad,y+7);
+  field('DATE',data.date,col2X,halfW);y+=15;
+  field('AMOUNT',data.amount,sx+pad,halfW);
+  field('APPROVED BY',data.pm,col2X,halfW);y+=13;
+  if(sigImg){try{doc.addImage(sigImg,'PNG',sx+pad,y,fullW,14);}catch(ex){}y+=18;}
+  doc.setFont('helvetica','normal');doc.setFontSize(6);doc.setTextColor(140,135,128);
+  doc.text('ADDITIONAL NOTES',sx+pad,y);y+=4;
+  const notesH=Math.max(20,sy+sh-y-6);
+  doc.setFillColor(233,247,238);doc.setDrawColor(143,203,159);doc.setLineWidth(0.6);
+  doc.roundedRect(sx+pad,y,fullW,notesH,2,2,'FD');
 }
 
 async function generatePDF(){
@@ -1648,9 +1658,9 @@ async function generatePDF(){
     const cc=gv('costCode')||'—',amt=gv('coAmount')||'—',desc=gv('coDescription');
     const scope=scopeVal==='in'?'In scope':'Out of scope',sc=scopeVal==='in'?[59,109,17]:[163,45,45];
     // Stamp is anchored to the lower-left corner of the attached PDF page.
-    const sw=215,pmSH=sigData?175:152;
+    const sw=215,pmSH=sigData?176:156;
     const sx=16,pmY=ph-16-pmSH;
-    drawStamp(doc,sx,pmY,sw,pmSH,{title:'PM APPROVAL',rows:[['PROJECT',proj],['VENDOR',vendor],['CE #',ce],['COST CODE',cc],['SCOPE',scope,sc],['DOC TYPE',docType||'—'],['AMOUNT',amt]]},{ll:'APPROVED BY',lv:pm,rl:'DATE',rv:fmtD(pmDate)},[192,41,26],sigData);
+    drawStamp(doc,sx,pmY,sw,pmSH,{pm,job:proj,scope,scopeColor:sc,costCode:cc,docType:docType||'—',date:fmtD(pmDate),amount:amt},sigData);
     const filename=fname();
     let pdfFile=null;
     try{pdfFile=new File([doc.output('blob')],filename,{type:'application/pdf'});}catch(ex){}
