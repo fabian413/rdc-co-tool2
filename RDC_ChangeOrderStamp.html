@@ -1687,14 +1687,19 @@ function drawStamp(doc,sx,sy,sw,sh,data,sigImg){
     doc.setFontSize(8.5);
     doc.text(doc.splitTextToSize(value||' ',w)[0],x,y+7);
   };
-  const rule=(c)=>{doc.setDrawColor(c[0],c[1],c[2]);doc.setLineWidth(0.75);doc.line(sx,y+3,sx+sw,y+3);};
-  field('APPROVED BY',data.pm,sx+pad,fullW,red);y+=15;rule(red);y+=1;
-  field('JOB#',data.job,sx+pad,fullW,red);y+=15;rule(red);y+=1;
+  // Draws the divider at a position relative to the row that just rendered
+  // (not the post-increment y) — a rule drawn after y had already advanced
+  // used to land 2pt above the next row's label instead of below the
+  // current row's value, cutting through that label instead of separating
+  // the two rows.
+  const rule=(c)=>{doc.setDrawColor(c[0],c[1],c[2]);doc.setLineWidth(0.75);doc.line(sx,y+13,sx+sw,y+13);y+=15;};
+  field('APPROVED BY',data.pm,sx+pad,fullW,red);rule(red);
+  field('JOB#',data.job,sx+pad,fullW,red);rule(red);
   field('SCOPE',data.scope,sx+pad,halfW,red);
-  field('COST CODE',data.costCode,col2X,halfW,red);y+=15;rule(red);y+=1;
-  field('INVOICE TYPE',data.docType,sx+pad,fullW,red);y+=15;rule(red);y+=1;
+  field('COST CODE',data.costCode,col2X,halfW,red);rule(red);
+  field('INVOICE TYPE',data.docType,sx+pad,fullW,red);rule(red);
   field('CHECK #',' ',sx+pad,halfW,green);
-  field('DATE',' ',col2X,halfW,green);y+=15;rule(green);y+=1;
+  field('DATE',' ',col2X,halfW,green);rule(green);
   field('AMOUNT',' ',sx+pad,halfW,green);
   field('APPROVED BY',' ',col2X,halfW,green);y+=13;
   if(sigImg){try{doc.addImage(sigImg,'PNG',sx+pad,y,fullW,14);}catch(ex){}y+=17;}
