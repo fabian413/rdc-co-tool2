@@ -1687,12 +1687,13 @@ function drawStamp(doc,sx,sy,sw,sh,data,sigImg){
     doc.setFontSize(8.5);
     doc.text(doc.splitTextToSize(value||' ',w)[0],x,y+7);
   };
-  // Draws the divider at a position relative to the row that just rendered
-  // (not the post-increment y) — a rule drawn after y had already advanced
-  // used to land 2pt above the next row's label instead of below the
-  // current row's value, cutting through that label instead of separating
-  // the two rows.
-  const rule=(c)=>{doc.setDrawColor(c[0],c[1],c[2]);doc.setLineWidth(0.75);doc.line(sx,y+13,sx+sw,y+13);y+=15;};
+  // Each row's label sits at y (cap-height reaches ~y-4) and value at y+7
+  // (baseline, descenders to ~y+9). The divider needs to clear the value's
+  // descenders AND leave room before the next row's label cap-height starts
+  // at (y+18)-4 — a divider at y+10 with an 18pt row advance leaves a clean
+  // ~4pt gap on both sides instead of cutting through either row's text.
+  const ROW_H=18;
+  const rule=(c)=>{doc.setDrawColor(c[0],c[1],c[2]);doc.setLineWidth(0.75);doc.line(sx,y+10,sx+sw,y+10);y+=ROW_H;};
   field('APPROVED BY',data.pm,sx+pad,fullW,red);rule(red);
   field('JOB#',data.job,sx+pad,fullW,red);rule(red);
   field('SCOPE',data.scope,sx+pad,halfW,red);
@@ -1701,7 +1702,7 @@ function drawStamp(doc,sx,sy,sw,sh,data,sigImg){
   field('CHECK #',' ',sx+pad,halfW,green);
   field('DATE',' ',col2X,halfW,green);rule(green);
   field('AMOUNT',' ',sx+pad,halfW,green);
-  field('APPROVED BY',' ',col2X,halfW,green);y+=13;
+  field('APPROVED BY',' ',col2X,halfW,green);y+=16;
   if(sigImg){try{doc.addImage(sigImg,'PNG',sx+pad,y,fullW,14);}catch(ex){}y+=17;}
   doc.setDrawColor(green[0],green[1],green[2]);doc.setLineWidth(1);doc.line(sx,y,sx+sw,y);y+=2;
   doc.setFont('helvetica','bold');doc.setFontSize(5.5);doc.setTextColor(green[0],green[1],green[2]);
@@ -1726,7 +1727,7 @@ async function generatePDF(){
     const cc=gv('costCode')||'—',amt=gv('coAmount')||'—',desc=gv('coDescription');
     const scope=scopeVal==='in'?'In scope':'Out of scope',sc=scopeVal==='in'?[59,109,17]:[163,45,45];
     // Stamp is anchored to the lower-left corner of the attached PDF page.
-    const sw=215,pmSH=sigData?180:158;
+    const sw=215,pmSH=sigData?200:183;
     const sx=16,pmY=ph-16-pmSH;
     drawStamp(doc,sx,pmY,sw,pmSH,{pm,job:proj,scope,scopeColor:sc,costCode:cc,docType:docType||'—',date:fmtD(pmDate),amount:amt},sigData);
     const filename=fname();
